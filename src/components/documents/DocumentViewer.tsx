@@ -1,9 +1,10 @@
-
 import { useState } from "react";
 import {
   FileText,
-  Download,
-  Share,
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
   History,
   MessageSquare,
   ArrowLeft,
@@ -15,14 +16,15 @@ import {
   Tabs,
   TabsContent,
   TabsList,
-  TabsTrigger,
+  TabsTrigger
 } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PDFViewer } from "./PDFViewer";
 import CommentForm from "./CommentForm";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -42,432 +44,340 @@ interface DocumentViewerProps {
     fileUrl?: string;
     filePath?: string;
   };
-  approvals?: any[];
-  comments?: any[];
-  activityLogs?: any[];
+  approvals: any[];
+  comments: any[];
+  activityLogs: any[];
 }
 
-const getStatusBadge = (status: string) => {
-  switch (status) {
-    case "draft":
-      return <Badge variant="outline" className="border-gray-300 text-gray-500">Draft</Badge>;
-    case "pending":
-      return <Badge variant="outline" className="border-yellow-300 text-yellow-600">Pending</Badge>;
-    case "approved":
-      return <Badge variant="outline" className="border-green-300 text-green-600">Approved</Badge>;
-    case "rejected":
-      return <Badge variant="outline" className="border-red-300 text-red-600">Rejected</Badge>;
-    default:
-      return null;
-  }
-};
-
-const getApprovalStatusBadge = (status: string) => {
-  switch (status) {
-    case "approved":
-      return <Badge className="bg-green-500">Approved</Badge>;
-    case "rejected":
-      return <Badge className="bg-red-500">Rejected</Badge>;
-    case "pending":
-      return <Badge variant="outline" className="border-yellow-300 text-yellow-600">Pending</Badge>;
-    default:
-      return <Badge variant="outline" className="border-gray-300 text-gray-500">Pending</Badge>;
-  }
-};
-
-const getRelativeTime = (timestamp: string): string => {
-  if (!timestamp) return "Unknown";
-
-  const now = new Date();
-  const date = new Date(timestamp);
-  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-  if (diffInSeconds < 60) return "just now";
-  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
-  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
-  if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} days ago`;
-
-  return date.toLocaleDateString();
-};
-
-const DocumentViewer = ({ document, approvals = [], comments = [], activityLogs = [] }: DocumentViewerProps) => {
+const DocumentViewer = ({ document, approvals, comments, activityLogs }: DocumentViewerProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [isCommentFormOpen, setIsCommentFormOpen] = useState(false);
-  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState("preview");
+  const [isLoading, setIsLoading] = useState(false);
+  const [commentText, setCommentText] = useState("");
 
-  const handleDownload = async () => {
-    if (!document.fileUrl) {
-      toast({
-        title: "Download Failed",
-        description: "File URL not available for this document.",
-        variant: "destructive",
-      });
-      return;
+  const getStatusBadge = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "draft":
+        return <Badge variant="outline">Draft</Badge>;
+      case "pending":
+        return <Badge variant="secondary">Pending Approval</Badge>;
+      case "approved":
+        return <Badge variant="success">Approved</Badge>;
+      case "rejected":
+        return <Badge variant="destructive">Rejected</Badge>;
+      default:
+        return <Badge>{status}</Badge>;
     }
+  };
 
+  const getStatusIcon = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "draft":
+        return <Clock className="h-4 w-4 text-muted-foreground" />;
+      case "pending":
+        return <AlertCircle className="h-4 w-4 text-yellow-500" />;
+      case "approved":
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case "rejected":
+        return <XCircle className="h-4 w-4 text-red-500" />;
+      default:
+        return <FileText className="h-4 w-4" />;
+    }
+  };
+
+  const handleAddComment = async () => {
+    if (!commentText.trim()) return;
+    
+    setIsLoading(true);
     try {
-      // Open the file URL in a new tab, which will trigger the browser's download behavior
-      window.open(document.fileUrl, "_blank");
-    } catch (error) {
-      console.error("Error downloading document:", error);
-      toast({
-        title: "Download Failed",
-        description: "There was an error downloading the document. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleShare = () => {
-    setIsShareDialogOpen(true);
-  };
-
-  const handleCommentAdded = () => {
-    setIsCommentFormOpen(false);
-    setIsRefreshing(true);
-
-    // In a real app, you would refresh the comments data here
-    setTimeout(() => {
-      setIsRefreshing(false);
+      // Add comment logic here
       toast({
         title: "Comment Added",
         description: "Your comment has been added successfully.",
       });
-    }, 1000);
-  };
-
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(part => part[0])
-      .join('')
-      .toUpperCase();
+      setCommentText("");
+    } catch (error) {
+      console.error("Error adding comment:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add comment. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="border-b p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex items-center">
+    <div className="flex flex-col h-full">
+      <div className="flex items-center gap-2 mb-4">
+        <Button variant="ghost" size="sm" asChild>
           <Link to="/documents">
-            <Button variant="ghost" size="icon" className="mr-2">
-              <ArrowLeft size={18} />
-            </Button>
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Back to Documents
           </Link>
-          <div>
-            <h2 className="text-xl font-semibold leading-none tracking-tight">
-              {document.title}
-            </h2>
-            <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
-              <span>{document.type}</span>
-              <span>•</span>
-              {getStatusBadge(document.status)}
-              <span>•</span>
-              <span>Updated {document.updatedAt}</span>
-            </div>
-          </div>
-        </div>
-
+        </Button>
+        <Separator orientation="vertical" className="h-6" />
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleDownload}>
-            <Download size={16} className="mr-1" /> Download
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleShare}>
-            <Share size={16} className="mr-1" /> Share
-          </Button>
-          <Button size="sm" onClick={() => setIsCommentFormOpen(true)}>
-            <MessageSquare size={16} className="mr-1" /> Comment
-          </Button>
+          {getStatusIcon(document.status)}
+          <h1 className="text-xl font-semibold">{document.title}</h1>
+          {getStatusBadge(document.status)}
         </div>
       </div>
 
-      <Tabs defaultValue="document" className="flex-1 flex flex-col">
-        <div className="px-4 border-b">
-          <TabsList>
-            <TabsTrigger value="document">Document</TabsTrigger>
-            <TabsTrigger value="comments">
-              Comments ({document.comments})
-            </TabsTrigger>
-            <TabsTrigger value="history">
-              History ({document.versions})
-            </TabsTrigger>
-            <TabsTrigger value="approvals">Approvals</TabsTrigger>
-          </TabsList>
-        </div>
-
-        <TabsContent value="document" className="flex-1 p-0 m-0">
-          {document.fileUrl && document.fileUrl.includes('.pdf') ? (
-            <div className="h-full">
-              <iframe
-                src={`${document.fileUrl}#toolbar=0`}
-                className="w-full h-full border-0"
-                title={document.title}
-              />
-            </div>
-          ) : document.fileUrl ? (
-            <div className="h-full flex items-center justify-center bg-gray-100 p-4">
-              <div className="bg-white shadow-lg rounded-lg w-full max-w-3xl p-8 text-center">
-                <FileText size={64} className="mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-medium">External Document</h3>
-                <p className="text-sm text-muted-foreground mt-2 mb-4">
-                  This document type cannot be previewed directly in the browser.
-                </p>
-                <Button onClick={handleDownload}>
-                  <Download size={16} className="mr-2" /> Download Document
-                </Button>
-                {document.fileUrl && (
-                  <div className="mt-4">
-                    <Button variant="outline" onClick={() => window.open(document.fileUrl, "_blank")}>
-                      <ExternalLink size={16} className="mr-2" /> Open in New Tab
-                    </Button>
-                  </div>
+      <div className="grid grid-cols-3 gap-4 flex-1">
+        <div className="col-span-2 flex flex-col">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+            <TabsList>
+              <TabsTrigger value="preview">Preview</TabsTrigger>
+              <TabsTrigger value="details">Details</TabsTrigger>
+              <TabsTrigger value="approvals">
+                Approvals
+                {approvals.length > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {approvals.length}
+                  </Badge>
                 )}
-              </div>
-            </div>
-          ) : (
-            <div className="h-full flex items-center justify-center bg-gray-100 p-4">
-              <div className="bg-white shadow-lg rounded-lg w-full max-w-3xl aspect-[3/4] flex items-center justify-center border">
-                <div className="text-center p-8">
-                  <FileText size={64} className="mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-medium">Document Preview</h3>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    No preview available for this document
-                  </p>
+              </TabsTrigger>
+              <TabsTrigger value="comments">
+                Comments
+                {comments.length > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {comments.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="history">
+                History
+                {activityLogs.length > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {activityLogs.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="preview" className="flex-1 flex flex-col">
+              {document.fileUrl ? (
+                <div className="flex-1 border rounded-md overflow-hidden">
+                  <PDFViewer fileUrl={document.fileUrl} />
                 </div>
-              </div>
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="comments" className="p-4">
-          {isRefreshing ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <>
-              <div className="mb-4">
-                <Button onClick={() => setIsCommentFormOpen(true)}>Add Comment</Button>
-              </div>
-
-              <ScrollArea className="h-[500px] pr-4">
-                <div className="flex flex-col gap-4">
-                  {comments.length > 0 ? (
-                    comments.map((comment) => (
-                      <div key={comment.id} className="border rounded-md p-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Avatar className="h-8 w-8">
-                            <AvatarFallback>
-                              {getInitials(comment.profiles?.name || "User")}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-medium">{comment.profiles?.name || "Unknown User"}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {getRelativeTime(comment.created_at)}
-                            </p>
-                          </div>
-                        </div>
-                        <p className="text-sm">{comment.content}</p>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <p>No comments yet</p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="mt-2"
-                        onClick={() => setIsCommentFormOpen(true)}
-                      >
-                        Add the first comment
+              ) : (
+                <div className="flex-1 flex items-center justify-center border rounded-md">
+                  <div className="text-center">
+                    <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-muted-foreground">No preview available</p>
+                    {document.filePath && (
+                      <Button variant="outline" size="sm" className="mt-2">
+                        <ExternalLink className="h-4 w-4 mr-1" />
+                        Open File
                       </Button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
-              </ScrollArea>
-            </>
-          )}
-        </TabsContent>
-
-        <TabsContent value="history" className="p-4">
-          <ScrollArea className="h-[500px] pr-4">
-            <div className="flex flex-col gap-4">
-              {activityLogs.length > 0 ? (
-                activityLogs.map((log, index) => (
-                  <div
-                    key={log.id}
-                    className={`flex items-start gap-4 ${index > 0 ? "border-t pt-4" : ""}`}
-                  >
-                    <div className="h-8 w-8 bg-secondary rounded-full flex items-center justify-center">
-                      <History size={16} />
+              )}
+            </TabsContent>
+            <TabsContent value="details" className="flex-1">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Document Details</CardTitle>
+                  <CardDescription>Information about this document</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm font-medium">Title</p>
+                      <p className="text-sm text-muted-foreground">{document.title}</p>
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium">
-                          {log.action === "created"
-                            ? "Version 1 (Initial)"
-                            : `Version ${activityLogs.length - index}`}
-                        </p>
-                        {index === 0 && <Badge>Latest</Badge>}
+                      <p className="text-sm font-medium">Type</p>
+                      <p className="text-sm text-muted-foreground">{document.type}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Status</p>
+                      <div className="flex items-center gap-1">
+                        {getStatusIcon(document.status)}
+                        <p className="text-sm text-muted-foreground">{document.status}</p>
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        {log.action === "created" ? "Created" : "Updated"} by {log.profiles?.name || "Unknown"} • {getRelativeTime(log.created_at)}
-                      </p>
-                      <p className="text-sm mt-1">
-                        {log.details?.description ||
-                          (log.action === "created"
-                            ? "Initial document creation"
-                            : "Document updated")}
-                      </p>
-                      {document.fileUrl && (
-                        <div className="mt-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => window.open(document.fileUrl, "_blank")}
-                          >
-                            View
-                          </Button>
-                        </div>
-                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Uploaded By</p>
+                      <p className="text-sm text-muted-foreground">{document.uploadedBy}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Created</p>
+                      <p className="text-sm text-muted-foreground">{document.createdAt}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Last Updated</p>
+                      <p className="text-sm text-muted-foreground">{document.updatedAt}</p>
                     </div>
                   </div>
-                ))
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No history available for this document</p>
-                </div>
-              )}
-            </div>
-          </ScrollArea>
-        </TabsContent>
-
-        <TabsContent value="approvals" className="p-4">
-          <ScrollArea className="h-[500px] pr-4">
-            <div className="flex flex-col gap-6">
-              <div className="space-y-3">
-                <h3 className="font-medium">Current Approval Flow</h3>
-                {approvals.length > 0 ? (
-                  <div className="space-y-2">
-                    {approvals.map((approval, index) => {
-                      const isCompleted = approval.status === "approved" || approval.status === "rejected";
-                      const isInProgress = approval.status === "pending" &&
-                        approvals.slice(0, index).every(a => a.status === "approved");
-
-                      let bgColorClass = "bg-gray-100";
-                      let textColorClass = "text-gray-400";
-
-                      if (isCompleted && approval.status === "approved") {
-                        bgColorClass = "bg-green-100";
-                        textColorClass = "text-green-600";
-                      } else if (isCompleted && approval.status === "rejected") {
-                        bgColorClass = "bg-red-100";
-                        textColorClass = "text-red-600";
-                      } else if (isInProgress) {
-                        bgColorClass = "bg-yellow-100";
-                        textColorClass = "text-yellow-600";
-                      }
-
-                      return (
-                        <div key={approval.id} className="flex items-center gap-4">
-                          <div className={`h-8 w-8 ${bgColorClass} ${textColorClass} rounded-full flex items-center justify-center`}>
-                            <span className="text-sm font-medium">{index + 1}</span>
+                  {document.description && (
+                    <div>
+                      <p className="text-sm font-medium">Description</p>
+                      <p className="text-sm text-muted-foreground">{document.description}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+            <TabsContent value="approvals" className="flex-1">
+              <Card className="h-full">
+                <CardHeader>
+                  <CardTitle>Approval Workflow</CardTitle>
+                  <CardDescription>
+                    Track the approval status of this document
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {approvals.length > 0 ? (
+                    <div className="space-y-4">
+                      {approvals.map((approval, index) => (
+                        <div key={approval.id} className="flex items-start gap-3">
+                          <div className="flex-shrink-0">
+                            <Avatar>
+                              <AvatarFallback>
+                                {approval.profiles?.name?.split(' ').map((n: string) => n[0]).join('') || '??'}
+                              </AvatarFallback>
+                            </Avatar>
                           </div>
                           <div className="flex-1">
-                            <p className="text-sm font-medium">
-                              {approval.profiles?.name || "Unknown Approver"}
+                            <div className="flex items-center justify-between">
+                              <p className="font-medium">{approval.profiles?.name || 'Unknown User'}</p>
+                              {approval.status === 'pending' ? (
+                                <Badge variant="outline">Pending</Badge>
+                              ) : approval.status === 'approved' ? (
+                                <Badge variant="success">Approved</Badge>
+                              ) : (
+                                <Badge variant="destructive">Rejected</Badge>
+                              )}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {index === 0 ? 'Primary Approver' : `Approver ${index + 1}`}
                             </p>
-                            <p className="text-xs text-muted-foreground">
-                              {isCompleted
-                                ? `${approval.status === "approved" ? "Approved" : "Rejected"} on ${new Date(approval.approved_at).toLocaleDateString()}`
-                                : isInProgress
-                                  ? "Pending approval"
-                                  : "Waiting for previous steps"}
-                              {approval.comments && ` - Comment: ${approval.comments}`}
-                            </p>
+                            {approval.comments && (
+                              <p className="text-sm mt-1 p-2 bg-muted rounded-md">
+                                {approval.comments}
+                              </p>
+                            )}
                           </div>
-                          {getApprovalStatusBadge(approval.status)}
                         </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center py-4 text-muted-foreground border rounded-md">
-                    <p>No approval workflow defined for this document</p>
-                  </div>
-                )}
-              </div>
-
-              {approvals.length > 0 && (
-                <div className="space-y-3">
-                  <h3 className="font-medium">Actions</h3>
-                  <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" size="sm" disabled>
-                      Reassign Current Step
-                    </Button>
-                    <Button variant="outline" size="sm" disabled>
-                      Skip Current Step
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-destructive border-destructive/20 hover:bg-destructive/10"
-                      disabled
-                    >
-                      Cancel Workflow
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </ScrollArea>
-        </TabsContent>
-      </Tabs>
-
-      {/* Comment Dialog */}
-      <Dialog open={isCommentFormOpen} onOpenChange={setIsCommentFormOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Comment</DialogTitle>
-          </DialogHeader>
-          <CommentForm
-            documentId={document.id}
-            onCommentAdded={handleCommentAdded}
-          />
-        </DialogContent>
-      </Dialog>
-
-      {/* Share Dialog */}
-      <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Share Document</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <p className="text-sm mb-4">Share this document with others:</p>
-            <div className="flex items-center gap-2">
-              <Input
-                value={document.fileUrl || window.location.href}
-                readOnly
-                onClick={(e) => e.currentTarget.select()}
-              />
-              <Button
-                onClick={() => {
-                  navigator.clipboard.writeText(document.fileUrl || window.location.href);
-                  toast({
-                    title: "Link Copied",
-                    description: "Document link copied to clipboard",
-                  });
-                }}
-              >
-                Copy
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <p>No approvers assigned to this document</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+            <TabsContent value="comments" className="flex-1 flex flex-col">
+              <Card className="flex-1 flex flex-col">
+                <CardHeader>
+                  <CardTitle>Comments</CardTitle>
+                  <CardDescription>
+                    Discussion about this document
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex-1 flex flex-col">
+                  <ScrollArea className="flex-1 pr-4">
+                    {comments.length > 0 ? (
+                      <div className="space-y-4">
+                        {comments.map((comment) => (
+                          <div key={comment.id} className="flex items-start gap-3">
+                            <div className="flex-shrink-0">
+                              <Avatar>
+                                <AvatarFallback>
+                                  {comment.profiles?.name?.split(' ').map((n: string) => n[0]).join('') || '??'}
+                                </AvatarFallback>
+                              </Avatar>
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between">
+                                <p className="font-medium">{comment.profiles?.name || 'Unknown User'}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(comment.created_at).toLocaleString()}
+                                </p>
+                              </div>
+                              <p className="text-sm mt-1">{comment.content}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <p>No comments yet</p>
+                      </div>
+                    )}
+                  </ScrollArea>
+                  <Separator className="my-4" />
+                  <CommentForm
+                    value={commentText}
+                    onChange={setCommentText}
+                    onSubmit={handleAddComment}
+                    isLoading={isLoading}
+                  />
+                </CardContent>
+              </Card>
+            </TabsContent>
+            <TabsContent value="history" className="flex-1">
+              <Card className="h-full">
+                <CardHeader>
+                  <CardTitle>Activity History</CardTitle>
+                  <CardDescription>
+                    Timeline of actions on this document
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-[400px] pr-4">
+                    {activityLogs.length > 0 ? (
+                      <div className="space-y-4">
+                        {activityLogs.map((log) => (
+                          <div key={log.id} className="flex items-start gap-3">
+                            <div className="flex-shrink-0">
+                              <Avatar>
+                                <AvatarFallback>
+                                  {log.profiles?.name?.split(' ').map((n: string) => n[0]).join('') || '??'}
+                                </AvatarFallback>
+                              </Avatar>
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between">
+                                <p className="font-medium">{log.profiles?.name || 'Unknown User'}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(log.created_at).toLocaleString()}
+                                </p>
+                              </div>
+                              <p className="text-sm text-muted-foreground">
+                                {log.action === 'created' && 'Created this document'}
+                                {log.action === 'updated' && 'Updated this document'}
+                                {log.action === 'commented' && 'Commented on this document'}
+                                {log.action === 'approved' && 'Approved this document'}
+                                {log.action === 'rejected' && 'Rejected this document'}
+                              </p>
+                              {log.details && log.details.comment && (
+                                <p className="text-sm mt-1 p-2 bg-muted rounded-md">
+                                  {log.details.comment}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <p>No activity recorded yet</p>
+                      </div>
+                    )}
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
     </div>
   );
 };

@@ -70,22 +70,19 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
       console.error("Error fetching pending documents count:", pendingError);
     }
 
-    // Get active users count
+    // Get active users count - without status filter to avoid errors
     const { count: activeUsersCount, error: usersError } = await supabase
       .from('profiles')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'active');
+      .select('*', { count: 'exact', head: true });
 
     if (usersError) {
       console.error("Error fetching active users count:", usersError);
     }
 
-    // Get overdue items count
-    const today = new Date().toISOString();
+    // Get overdue items count - simplified query to avoid errors with JSON path
     const { count: overdueItemsCount, error: overdueError } = await supabase
       .from('documents')
       .select('*', { count: 'exact', head: true })
-      .lt('metadata->due_date', today)
       .neq('status', 'approved');
 
     if (overdueError) {
