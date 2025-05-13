@@ -12,6 +12,7 @@ import Dashboard from "@/pages/Dashboard";
 import Documents from "@/pages/Documents";
 import Approvals from "@/pages/Approvals";
 import DocumentView from "@/pages/DocumentView";
+import Templates from "@/pages/Templates";
 import Settings from "@/pages/Settings";
 import NotFound from "@/pages/NotFound";
 import Admin from "@/pages/Admin";
@@ -84,6 +85,7 @@ const App = () => {
                     <Route index element={<Dashboard />} />
                     <Route path="/documents" element={<Documents />} />
                     <Route path="/documents/:id" element={<DocumentView />} />
+                    <Route path="/templates" element={<Templates />} />
                     <Route path="/approvals" element={<Approvals />} />
                     <Route path="/settings" element={<Settings />} />
                     <Route path="/admin" element={<Admin />} />

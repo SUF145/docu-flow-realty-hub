@@ -11,8 +11,8 @@ import {
   Settings,
   Users,
   Shield,
-  Search,
   PanelLeft,
+  BookOpen,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
@@ -30,6 +30,11 @@ const Sidebar = () => {
       icon: <FileText size={20} />,
       name: "Documents",
       path: "/documents",
+    },
+    {
+      icon: <BookOpen size={20} />,
+      name: "Templates",
+      path: "/templates",
     },
     {
       icon: <CheckSquare size={20} />,
@@ -97,8 +102,8 @@ const Sidebar = () => {
               to={item.path}
               className={cn(
                 "flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                isActive(item.path) 
-                  ? "bg-sidebar-primary text-sidebar-primary-foreground" 
+                isActive(item.path)
+                  ? "bg-sidebar-primary text-sidebar-primary-foreground"
                   : "text-sidebar-foreground"
               )}
             >
@@ -121,8 +126,8 @@ const Sidebar = () => {
               to={item.path}
               className={cn(
                 "flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                isActive(item.path) 
-                  ? "bg-sidebar-primary text-sidebar-primary-foreground" 
+                isActive(item.path)
+                  ? "bg-sidebar-primary text-sidebar-primary-foreground"
                   : "text-sidebar-foreground"
               )}
             >
