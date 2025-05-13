@@ -55,20 +55,50 @@ const Admin = () => {
       setLoading(true);
       setError(null);
       try {
+        console.log(`Fetching data for tab: ${activeTab}`);
         switch (activeTab) {
           case "users":
-            const userData = await supabaseService.getUsers();
-            setUsers(userData);
+            try {
+              const userData = await supabaseService.getUsers();
+              setUsers(userData);
+              if (userData.length === 0) {
+                console.log('No users found or error occurred');
+              }
+            } catch (userError) {
+              console.error("Error in users tab:", userError);
+              // Continue execution even if there's an error
+              setUsers([]);
+            }
             break;
           case "roles":
-            const rolesData = await supabaseService.getRoles();
-            setRoles(rolesData);
+            try {
+              const rolesData = await supabaseService.getRoles();
+              setRoles(rolesData);
+              if (rolesData.length === 0) {
+                console.log('No roles found or error occurred');
+              }
+            } catch (roleError) {
+              console.error("Error in roles tab:", roleError);
+              // Continue execution even if there's an error
+              setRoles([]);
+            }
             break;
           case "document-types":
-            const docTypesData = await supabaseService.getDocumentTypes();
-            setDocumentTypes(docTypesData);
+            try {
+              const docTypesData = await supabaseService.getDocumentTypes();
+              setDocumentTypes(docTypesData);
+              if (docTypesData.length === 0) {
+                console.log('No document types found or error occurred');
+              }
+            } catch (docError) {
+              console.error("Error in document-types tab:", docError);
+              // Continue execution even if there's an error
+              setDocumentTypes([]);
+            }
             break;
         }
+        // Clear any previous errors since we're handling errors per tab
+        setError(null);
       } catch (error) {
         console.error("Error fetching data:", error);
         setError("Failed to load data. Please try again.");
@@ -126,16 +156,25 @@ const Admin = () => {
         const updatedUser = await supabaseService.updateUser(selectedUser.id, data);
         setUsers(users.map(user => user.id === selectedUser.id ? updatedUser : user));
       } else {
-        const newUser = await supabaseService.createUser(data);
-        
-        // If we're using Supabase Auth, we'd also need to create the auth user
+        let userId;
+  
+        // First, create auth user and get its ID
         if (data.password) {
-          await supabaseService.signUp(data.email, data.password, {
+          const authData = await supabaseService.signUp(data.email, data.password, {
             name: data.name,
             role: data.role
           });
+          userId = authData.user.id;
         }
-        
+  
+        // Then, insert into `profiles` with that ID
+        const newUser = await supabaseService.createUser({
+          id: userId, // ensure ID is same as auth user
+          name: data.name,
+          email: data.email,
+          role: data.role
+        });
+  
         setUsers([...users, newUser]);
       }
     } catch (error) {
@@ -143,6 +182,7 @@ const Admin = () => {
       throw error;
     }
   };
+  
 
   // Role form handlers
   const handleAddRole = () => {

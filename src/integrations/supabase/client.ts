@@ -9,3 +9,51 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 // import { supabase } from "@/integrations/supabase/client";
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+// Initialize storage bucket for documents
+export const initializeStorage = async () => {
+  try {
+    console.log("Checking if 'documents' storage bucket exists...");
+    const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+
+    if (bucketsError) {
+      console.error("Failed to list storage buckets:", bucketsError);
+      return false;
+    }
+
+    console.log("Available buckets:", buckets?.map(b => b.name).join(", ") || "none");
+
+    const documentsBucketExists = buckets?.some(bucket => bucket.name === 'documents');
+    if (!documentsBucketExists) {
+      console.log("'documents' bucket does not exist, creating it...");
+
+      const { data: newBucket, error: createBucketError } = await supabase.storage.createBucket('documents', {
+        public: true,
+        fileSizeLimit: 10485760, // 10MB
+        allowedMimeTypes: [
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'application/vnd.ms-excel',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'image/jpeg',
+          'image/png'
+        ]
+      });
+
+      if (createBucketError) {
+        console.error("Failed to create 'documents' bucket:", createBucketError);
+        return false;
+      }
+
+      console.log("Successfully created 'documents' bucket");
+      return true;
+    } else {
+      console.log("'documents' bucket already exists");
+      return true;
+    }
+  } catch (error) {
+    console.error("Exception when initializing storage:", error);
+    return false;
+  }
+};
