@@ -14,7 +14,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -64,10 +64,14 @@ const UserForm = ({ isOpen, onClose, onSubmit, user, roles }: UserFormProps) => 
   // Update form when user changes
   useEffect(() => {
     if (user) {
+      console.log("Setting form values for user:", user);
+      // Handle both role_id and role for backward compatibility
+      const roleId = user.role_id || (typeof user.role === 'string' ? user.role : "");
+
       form.reset({
         name: user.name || "",
         email: user.email || "",
-        role_id: user.role_id || "",
+        role_id: roleId,
         password: "", // Always empty for editing
       });
     } else {
@@ -106,10 +110,10 @@ const UserForm = ({ isOpen, onClose, onSubmit, user, roles }: UserFormProps) => 
       <SheetContent className="sm:max-w-md">
         <SheetHeader>
           <SheetTitle>{user ? "Edit User" : "Add New User"}</SheetTitle>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="absolute right-4 top-4" 
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute right-4 top-4"
             onClick={onClose}
           >
             <X className="h-4 w-4" />
@@ -152,24 +156,41 @@ const UserForm = ({ isOpen, onClose, onSubmit, user, roles }: UserFormProps) => 
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Role</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      defaultValue={field.value}
-                      value={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a role" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {roles.map((role) => (
-                          <SelectItem key={role.id} value={role.id}>
-                            {role.name}
-                          </SelectItem>
+                    {/* Simple Select implementation instead of complex dropdown */}
+                    <div className="border rounded-md p-4">
+                      <p className="text-sm font-medium mb-2">
+                        {field.value
+                          ? roles.find(r => r.id === field.value)?.name || "Selected Role"
+                          : "Select a role"}
+                      </p>
+
+                      <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                        {/* Always ensure we have at least default roles */}
+                        {(roles.length > 0 ? roles : [
+                          { id: "1", name: "Admin", description: "Administrator with all permissions" },
+                          { id: "2", name: "User", description: "Standard user with basic permissions" }
+                        ]).map((role) => (
+                          <div
+                            key={role.id}
+                            className={`flex items-center space-x-2 p-2 hover:bg-muted rounded-md cursor-pointer ${
+                              field.value === role.id ? "bg-muted" : ""
+                            }`}
+                            onClick={() => field.onChange(role.id)}
+                          >
+                            <div className={`w-4 h-4 border rounded-sm flex items-center justify-center ${
+                              field.value === role.id ? "bg-primary border-primary" : "border-input"
+                            }`}>
+                              {field.value === role.id && (
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3 text-primary-foreground">
+                                  <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                              )}
+                            </div>
+                            <span>{role.name}</span>
+                          </div>
                         ))}
-                      </SelectContent>
-                    </Select>
+                      </div>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

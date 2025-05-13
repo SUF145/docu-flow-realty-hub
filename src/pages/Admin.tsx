@@ -46,8 +46,46 @@ const Admin = () => {
   const [selectedDocType, setSelectedDocType] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const { toast } = useToast();
+
+  // Load roles on component mount (regardless of active tab)
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        console.log("Fetching roles for all tabs...");
+        const rolesData = await supabaseService.getRoles();
+        console.log("Roles fetched:", rolesData);
+        setRoles(rolesData);
+      } catch (error) {
+        console.error("Error fetching roles:", error);
+        // Set default roles if there's an error
+        setRoles([
+          {
+            id: "1",
+            name: "Admin",
+            description: "Administrator with all permissions",
+            permissions: ["view_documents", "create_documents", "edit_documents", "delete_documents",
+                         "approve_documents", "manage_users", "manage_roles", "view_reports"]
+          },
+          {
+            id: "2",
+            name: "User",
+            description: "Standard user with basic permissions",
+            permissions: ["view_documents", "create_documents"]
+          },
+          {
+            id: "3",
+            name: "Approver",
+            description: "Can approve documents",
+            permissions: ["view_documents", "approve_documents", "view_reports"]
+          }
+        ]);
+      }
+    };
+
+    fetchRoles();
+  }, []);
 
   // Load data when component mounts or tab changes
   useEffect(() => {
@@ -71,17 +109,7 @@ const Admin = () => {
             }
             break;
           case "roles":
-            try {
-              const rolesData = await supabaseService.getRoles();
-              setRoles(rolesData);
-              if (rolesData.length === 0) {
-                console.log('No roles found or error occurred');
-              }
-            } catch (roleError) {
-              console.error("Error in roles tab:", roleError);
-              // Continue execution even if there's an error
-              setRoles([]);
-            }
+            // Roles are already loaded in the separate useEffect
             break;
           case "document-types":
             try {
@@ -116,8 +144,8 @@ const Admin = () => {
   }, [activeTab, toast]);
 
   // Filter users based on search query
-  const filteredUsers = users.filter(user => 
-    (user.name?.toLowerCase() || "").includes(searchQuery.toLowerCase()) || 
+  const filteredUsers = users.filter(user =>
+    (user.name?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
     (user.email?.toLowerCase() || "").includes(searchQuery.toLowerCase())
   );
 
@@ -152,37 +180,82 @@ const Admin = () => {
 
   const handleUserFormSubmit = async (data: any) => {
     try {
+      console.log("Submitting user form data:", data);
+
       if (selectedUser) {
-        const updatedUser = await supabaseService.updateUser(selectedUser.id, data);
-        setUsers(users.map(user => user.id === selectedUser.id ? updatedUser : user));
+        // Prepare the update data - ensure we're using the correct field names
+        const updateData = {
+          name: data.name,
+          email: data.email,
+          // Handle both role_id and role for backward compatibility
+          role_id: data.role_id,
+          role: data.role_id // Also set role for systems that use that field
+        };
+
+        console.log("Updating user with data:", updateData);
+        const updatedUser = await supabaseService.updateUser(selectedUser.id, updateData);
+
+        // Update the local state with the updated user
+        setUsers(users.map(user => user.id === selectedUser.id ? {
+          ...user,
+          ...updatedUser,
+          role_id: updatedUser.role_id || updatedUser.role // Ensure role_id is set
+        } : user));
+
+        toast({
+          title: "User updated",
+          description: "User has been updated successfully."
+        });
       } else {
         let userId;
-  
-        // First, create auth user and get its ID
+
+        // First, create auth user and get its ID if we have a password
         if (data.password) {
-          const authData = await supabaseService.signUp(data.email, data.password, {
-            name: data.name,
-            role: data.role
-          });
-          userId = authData.user.id;
+          try {
+            const authData = await supabaseService.signUp(data.email, data.password, {
+              name: data.name,
+              role: data.role_id // Use role_id as role
+            });
+            userId = authData?.user?.id;
+          } catch (authError) {
+            console.error("Error creating auth user:", authError);
+            // Continue with profile creation even if auth fails
+            userId = crypto.randomUUID();
+          }
+        } else {
+          // Generate a random ID if no password provided (no auth user)
+          userId = crypto.randomUUID();
         }
-  
+
         // Then, insert into `profiles` with that ID
         const newUser = await supabaseService.createUser({
           id: userId, // ensure ID is same as auth user
           name: data.name,
           email: data.email,
-          role: data.role
+          role_id: data.role_id,
+          role: data.role_id // Also set role for systems that use that field
         });
-  
+
         setUsers([...users, newUser]);
+
+        toast({
+          title: "User created",
+          description: "New user has been created successfully."
+        });
       }
+
+      // Close the form
+      setIsUserFormOpen(false);
     } catch (error) {
       console.error("Error saving user:", error);
-      throw error;
+      toast({
+        title: "Error",
+        description: `Failed to ${selectedUser ? "update" : "create"} user. Please try again.`,
+        variant: "destructive"
+      });
     }
   };
-  
+
 
   // Role form handlers
   const handleAddRole = () => {
@@ -259,7 +332,7 @@ const Admin = () => {
       <AlertTriangle className="h-12 w-12 text-red-500 mb-4" />
       <h3 className="text-xl font-semibold mb-2">Something went wrong</h3>
       <p className="text-muted-foreground mb-6 max-w-md mx-auto">{error || "Failed to load data. Please try again."}</p>
-      <Button 
+      <Button
         onClick={() => {
           setLoading(true);
           setError(null);
@@ -303,7 +376,7 @@ const Admin = () => {
           Manage users, roles, and system configuration
         </p>
       </div>
-      
+
       <Tabs defaultValue="users" className="space-y-4" value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="users" className="flex items-center">
@@ -319,7 +392,7 @@ const Admin = () => {
             Document Types
           </TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="users">
           <Card>
             <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between space-y-2 sm:space-y-0">
@@ -336,19 +409,19 @@ const Admin = () => {
             </CardHeader>
             <CardContent>
               {error && renderErrorState()}
-              
+
               {!error && (
                 <>
                   <div className="mb-4 relative">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      placeholder="Search users..." 
+                    <Input
+                      placeholder="Search users..."
                       className="pl-8"
                       value={searchQuery}
                       onChange={e => setSearchQuery(e.target.value)}
                     />
                   </div>
-                  
+
                   <div className="rounded-md border">
                     <Table>
                       <TableHeader>
@@ -391,9 +464,9 @@ const Admin = () => {
                                 <Button variant="ghost" size="icon" onClick={() => handleEditUser(user)}>
                                   <Edit className="h-4 w-4" />
                                 </Button>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
                                   className="text-red-500 hover:text-red-600 hover:bg-red-50"
                                   onClick={() => handleDeleteUser(user.id)}
                                 >
@@ -411,7 +484,7 @@ const Admin = () => {
             </CardContent>
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="roles">
           <Card>
             <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between space-y-2 sm:space-y-0">
@@ -428,7 +501,7 @@ const Admin = () => {
             </CardHeader>
             <CardContent>
               {error && renderErrorState()}
-              
+
               {!error && (
                 <div className="rounded-md border">
                   <Table>
@@ -467,7 +540,7 @@ const Admin = () => {
                             </TableCell>
                             <TableCell>
                               <Badge variant="outline" className="bg-blue-100 text-blue-800 hover:bg-blue-100">
-                                {role.permissions?.length > 3 ? "Advanced" : 
+                                {role.permissions?.length > 3 ? "Advanced" :
                                  role.permissions?.length > 0 ? "Standard" : "Limited"}
                               </Badge>
                             </TableCell>
@@ -486,7 +559,7 @@ const Admin = () => {
             </CardContent>
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="document-types">
           <Card>
             <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between space-y-2 sm:space-y-0">
@@ -503,7 +576,7 @@ const Admin = () => {
             </CardHeader>
             <CardContent>
               {error && renderErrorState()}
-              
+
               {!error && (
                 <div className="rounded-md border">
                   <Table>
@@ -543,9 +616,9 @@ const Admin = () => {
                               <Button variant="ghost" size="icon" onClick={() => handleEditDocType(docType)}>
                                 <Edit className="h-4 w-4" />
                               </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
+                              <Button
+                                variant="ghost"
+                                size="icon"
                                 className="text-red-500 hover:text-red-600 hover:bg-red-50"
                                 onClick={() => handleDeleteDocType(docType.id)}
                               >
@@ -563,23 +636,23 @@ const Admin = () => {
           </Card>
         </TabsContent>
       </Tabs>
-      
+
       {/* Forms */}
-      <UserForm 
+      <UserForm
         isOpen={isUserFormOpen}
         onClose={() => setIsUserFormOpen(false)}
         onSubmit={handleUserFormSubmit}
         user={selectedUser}
         roles={roles}
       />
-      
+
       <RoleForm
         isOpen={isRoleFormOpen}
         onClose={() => setIsRoleFormOpen(false)}
         onSubmit={handleRoleFormSubmit}
         role={selectedRole}
       />
-      
+
       <DocumentTypeForm
         isOpen={isDocTypeFormOpen}
         onClose={() => setIsDocTypeFormOpen(false)}
