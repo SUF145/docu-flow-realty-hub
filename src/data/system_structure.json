@@ -1,0 +1,248 @@
+{
+  "product": {
+    "name": "DocuFlow Realty Hub",
+    "prefix": "dfr",
+    "description": "A document management system for Indian real estate professionals",
+    "is_active": true
+  },
+  "sources": [
+    {
+      "name": "Supabase",
+      "description": "Main database and storage source",
+      "type": "database",
+      "is_active": true
+    },
+    {
+      "name": "Local Storage",
+      "description": "Fallback storage for offline functionality",
+      "type": "local",
+      "is_active": true
+    }
+  ],
+  "destinations": [
+    {
+      "name": "Document Repository",
+      "description": "Central document storage system",
+      "type": "storage",
+      "is_active": true
+    },
+    {
+      "name": "Approval System",
+      "description": "Workflow for document approvals",
+      "type": "workflow",
+      "is_active": true
+    }
+  ],
+  "roles": [
+    {
+      "name": "Admin",
+      "description": "Administrator with full system access",
+      "is_active": true
+    },
+    {
+      "name": "User",
+      "description": "Regular user with standard permissions",
+      "is_active": true
+    },
+    {
+      "name": "Approver",
+      "description": "User who can approve documents",
+      "is_active": true
+    }
+  ],
+  "objects": [
+    {
+      "name": "Document",
+      "description": "Main document object",
+      "is_root": true,
+      "is_active": true
+    },
+    {
+      "name": "Folder",
+      "description": "Folder for organizing documents",
+      "is_root": true,
+      "is_active": true
+    },
+    {
+      "name": "Approval",
+      "description": "Document approval record",
+      "is_root": false,
+      "parent_object_name": "Document",
+      "is_active": true
+    },
+    {
+      "name": "Comment",
+      "description": "Comment on a document",
+      "is_root": false,
+      "parent_object_name": "Document",
+      "is_active": true
+    },
+    {
+      "name": "Template",
+      "description": "Document template",
+      "is_root": true,
+      "is_active": true
+    }
+  ],
+  "permissions": [
+    {
+      "name": "Read",
+      "description": "Read permission for documents and folders",
+      "resource_type": "object",
+      "is_active": true
+    },
+    {
+      "name": "Write",
+      "description": "Write permission for documents and folders",
+      "resource_type": "object",
+      "is_active": true
+    },
+    {
+      "name": "Approve",
+      "description": "Permission to approve documents",
+      "resource_type": "object",
+      "is_active": true
+    },
+    {
+      "name": "Reject",
+      "description": "Permission to reject documents",
+      "resource_type": "object",
+      "is_active": true
+    }
+  ],
+  "actions": [
+    {
+      "name": "Upload",
+      "description": "Upload a document",
+      "is_user_created": true,
+      "is_active": true
+    },
+    {
+      "name": "Download",
+      "description": "Download a document",
+      "is_user_created": true,
+      "is_active": true
+    },
+    {
+      "name": "Approve",
+      "description": "Approve a document",
+      "is_user_created": true,
+      "is_active": true
+    },
+    {
+      "name": "Reject",
+      "description": "Reject a document",
+      "is_user_created": true,
+      "is_active": true
+    },
+    {
+      "name": "Comment",
+      "description": "Comment on a document",
+      "is_user_created": true,
+      "is_active": true
+    },
+    {
+      "name": "CreateFolder",
+      "description": "Create a new folder",
+      "is_user_created": true,
+      "is_active": true
+    }
+  ],
+  "status_types": [
+    {
+      "name": "Draft",
+      "description": "Document is in draft state",
+      "is_start": true,
+      "is_end": false,
+      "is_active": true
+    },
+    {
+      "name": "Pending",
+      "description": "Document is pending approval",
+      "is_start": false,
+      "is_end": false,
+      "is_active": true
+    },
+    {
+      "name": "Approved",
+      "description": "Document has been approved",
+      "is_start": false,
+      "is_end": true,
+      "is_active": true
+    },
+    {
+      "name": "Rejected",
+      "description": "Document has been rejected",
+      "is_start": false,
+      "is_end": true,
+      "is_active": true
+    }
+  ],
+  "data_types": [
+    {
+      "name": "Text",
+      "description": "Text data type",
+      "validation_regex": ".*",
+      "is_active": true
+    },
+    {
+      "name": "Number",
+      "description": "Number data type",
+      "validation_regex": "^\\d+$",
+      "is_active": true
+    },
+    {
+      "name": "Date",
+      "description": "Date data type",
+      "validation_regex": "^\\d{4}-\\d{2}-\\d{2}$",
+      "is_active": true
+    },
+    {
+      "name": "File",
+      "description": "File data type",
+      "validation_regex": ".*",
+      "is_active": true
+    }
+  ],
+  "document_types": [
+    {
+      "name": "Contract",
+      "description": "Legal contract documents",
+      "required_approvals": 2,
+      "sla": 24,
+      "is_active": true
+    },
+    {
+      "name": "Invoice",
+      "description": "Payment invoices",
+      "required_approvals": 1,
+      "sla": 48,
+      "is_active": true
+    },
+    {
+      "name": "Report",
+      "description": "Analysis and reporting documents",
+      "required_approvals": 1,
+      "sla": 72,
+      "is_active": true
+    }
+  ],
+  "metadata": [
+    {
+      "key": "version",
+      "value": "1.0",
+      "is_auto_generated": false,
+      "user_created": true,
+      "is_restricted": false,
+      "is_active": true
+    },
+    {
+      "key": "created_date",
+      "value": "2023-05-25",
+      "is_auto_generated": true,
+      "user_created": false,
+      "is_restricted": false,
+      "is_active": true
+    }
+  ]
+}
