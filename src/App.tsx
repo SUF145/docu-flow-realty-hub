@@ -10,6 +10,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import Layout from "@/components/layout/Layout";
 import Dashboard from "@/pages/Dashboard";
 import Documents from "@/pages/Documents";
+import DocumentsWithFolders from "@/pages/DocumentsWithFolders";
 import Approvals from "@/pages/Approvals";
 import DocumentView from "@/pages/DocumentView";
 import Templates from "@/pages/Templates";
@@ -83,7 +84,8 @@ const App = () => {
                 <Route element={<RequireAuth />}>
                   <Route path="/" element={<Layout />}>
                     <Route index element={<Dashboard />} />
-                    <Route path="/documents" element={<Documents />} />
+                    <Route path="/documents" element={<DocumentsWithFolders />} />
+                    <Route path="/documents/folders/:folderId" element={<DocumentsWithFolders />} />
                     <Route path="/documents/:id" element={<DocumentView />} />
                     <Route path="/templates" element={<Templates />} />
                     <Route path="/approvals" element={<Approvals />} />

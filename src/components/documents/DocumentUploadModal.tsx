@@ -46,6 +46,7 @@ import { Check, ChevronsUpDown, Upload, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { uploadDocument } from "@/lib/documents";
 import { getDocumentTypes, getUsers } from "@/lib/supabase";
+import { getFolderHierarchy, FolderWithChildren } from "@/lib/folders";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ACCEPTED_FILE_TYPES = [
@@ -62,6 +63,7 @@ const documentUploadSchema = z.object({
   title: z.string().min(2, { message: "Title must be at least 2 characters." }),
   description: z.string().optional(),
   document_type_id: z.string().optional(),
+  folder_id: z.string().optional(),
   approvers: z.array(z.string()).optional(),
   file: z
     .instanceof(File)
@@ -79,14 +81,16 @@ interface DocumentUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: (documentId: string) => void;
+  currentFolderId?: string;
 }
 
-const DocumentUploadModal = ({ isOpen, onClose, onSuccess }: DocumentUploadModalProps) => {
+const DocumentUploadModal = ({ isOpen, onClose, onSuccess, currentFolderId }: DocumentUploadModalProps) => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [documentTypes, setDocumentTypes] = useState([]);
   const [users, setUsers] = useState([]);
+  const [folders, setFolders] = useState<FolderWithChildren[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
@@ -96,6 +100,7 @@ const DocumentUploadModal = ({ isOpen, onClose, onSuccess }: DocumentUploadModal
       title: "",
       description: "",
       document_type_id: undefined,
+      folder_id: currentFolderId,
       approvers: [],
       file: undefined,
     },
@@ -106,9 +111,10 @@ const DocumentUploadModal = ({ isOpen, onClose, onSuccess }: DocumentUploadModal
       try {
         console.log("Fetching data for document upload modal...");
 
-        // Fetch document types and users separately to better handle errors
+        // Fetch document types, users, and folders separately to better handle errors
         let docTypes = [];
         let usersList = [];
+        let foldersList: FolderWithChildren[] = [];
 
         try {
           docTypes = await getDocumentTypes();
@@ -136,8 +142,44 @@ const DocumentUploadModal = ({ isOpen, onClose, onSuccess }: DocumentUploadModal
           ];
         }
 
+        try {
+          foldersList = await getFolderHierarchy();
+          console.log("Folders fetched:", foldersList.length);
+        } catch (foldersError) {
+          console.error("Error fetching folders:", foldersError);
+          // Use default folders
+          foldersList = [
+            {
+              id: '1',
+              name: 'Root',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              is_deleted: false,
+              children: [
+                {
+                  id: '2',
+                  name: 'Contracts',
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                  is_deleted: false,
+                  children: []
+                },
+                {
+                  id: '3',
+                  name: 'Invoices',
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                  is_deleted: false,
+                  children: []
+                }
+              ]
+            }
+          ];
+        }
+
         setDocumentTypes(docTypes);
         setUsers(usersList);
+        setFolders(foldersList);
       } catch (error) {
         console.error("Error fetching data for document upload:", error);
 
@@ -154,6 +196,26 @@ const DocumentUploadModal = ({ isOpen, onClose, onSuccess }: DocumentUploadModal
           { id: '3', name: 'Bob Johnson', email: 'bob.johnson@example.com', role: 'User' }
         ]);
 
+        setFolders([
+          {
+            id: '1',
+            name: 'Root',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            is_deleted: false,
+            children: [
+              {
+                id: '2',
+                name: 'Contracts',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                is_deleted: false,
+                children: []
+              }
+            ]
+          }
+        ]);
+
         toast({
           title: "Warning",
           description: "Using sample data. Some features may be limited.",
@@ -165,7 +227,12 @@ const DocumentUploadModal = ({ isOpen, onClose, onSuccess }: DocumentUploadModal
     if (isOpen) {
       fetchData();
     }
-  }, [isOpen, toast]);
+
+    // Update folder_id when currentFolderId changes
+    if (currentFolderId) {
+      form.setValue("folder_id", currentFolderId);
+    }
+  }, [isOpen, toast, currentFolderId, form]);
 
   const handleSubmit = async (data: DocumentUploadFormData) => {
     if (!user) {
@@ -298,6 +365,41 @@ const DocumentUploadModal = ({ isOpen, onClose, onSuccess }: DocumentUploadModal
                           {type.name}
                         </SelectItem>
                       ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="folder_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Folder</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value || ""}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a folder" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="">Root (No Folder)</SelectItem>
+                      {/* Recursive function to render folder options */}
+                      {(function renderFolderOptions(folderList: FolderWithChildren[], depth = 0) {
+                        return folderList.flatMap(folder => [
+                          <SelectItem key={folder.id} value={folder.id}>
+                            {"\u00A0".repeat(depth * 2)}{depth > 0 ? "└ " : ""}{folder.name}
+                          </SelectItem>,
+                          ...(folder.children && folder.children.length > 0
+                            ? renderFolderOptions(folder.children, depth + 1)
+                            : [])
+                        ]);
+                      })(folders)}
                     </SelectContent>
                   </Select>
                   <FormMessage />

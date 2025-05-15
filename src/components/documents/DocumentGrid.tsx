@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Search, Plus, LayoutGrid, List, Upload, Loader2 } from "lucide-react";
 import { getDocuments, toggleDocumentFavorite } from "@/lib/documents";
+import { getDocumentsInFolder, getDocumentsInFolderTree } from "@/lib/folders";
 import { useToast } from "@/hooks/use-toast";
 
 interface DocumentCardProps {
@@ -30,7 +31,12 @@ interface DocumentCardProps {
   favorited?: boolean;
 }
 
-const DocumentGrid = () => {
+interface DocumentGridProps {
+  folderId?: string;
+  includeSubfolders?: boolean;
+}
+
+const DocumentGrid = ({ folderId, includeSubfolders = true }: DocumentGridProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [documents, setDocuments] = useState<DocumentCardProps[]>([]);
@@ -43,12 +49,24 @@ const DocumentGrid = () => {
 
   useEffect(() => {
     fetchDocuments();
-  }, []);
+  }, [folderId, includeSubfolders]);
 
   const fetchDocuments = async () => {
     setIsLoading(true);
     try {
-      const data = await getDocuments();
+      let data;
+
+      if (folderId) {
+        // Fetch documents from the specified folder
+        if (includeSubfolders) {
+          data = await getDocumentsInFolderTree(folderId);
+        } else {
+          data = await getDocumentsInFolder(folderId);
+        }
+      } else {
+        // Fetch all documents
+        data = await getDocuments();
+      }
 
       // Transform the data to match the DocumentCardProps interface
       const formattedDocuments = data.map((doc) => {
@@ -301,6 +319,7 @@ const DocumentGrid = () => {
       <DocumentUploadModal
         isOpen={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
+        currentFolderId={folderId}
         onSuccess={() => {
           fetchDocuments();
         }}

@@ -21,6 +21,7 @@ export interface Document {
   created_at: string;
   updated_at: string;
   document_type_id?: string;
+  folder_id?: string;
   metadata?: any;
 }
 
@@ -29,6 +30,7 @@ export interface DocumentUpload {
   description?: string;
   file: File;
   document_type_id?: string;
+  folder_id?: string;
   approvers?: string[];
 }
 
@@ -328,7 +330,14 @@ export const uploadDocument = async (documentUpload: DocumentUpload, userId: str
     const file = documentUpload.file;
     const fileExt = file.name.split('.').pop();
     const fileName = `${uuidv4()}.${fileExt}`;
-    const filePath = `documents/${fileName}`;
+
+    // Create file path based on folder structure
+    let filePath = '';
+    if (documentUpload.folder_id) {
+      filePath = `folders/${documentUpload.folder_id}/${fileName}`;
+    } else {
+      filePath = `documents/${fileName}`;
+    }
 
     console.log("Uploading file to storage path:", filePath);
     console.log("File details:", {
@@ -417,6 +426,7 @@ export const uploadDocument = async (documentUpload: DocumentUpload, userId: str
       status: 'draft',
       created_by: userId,
       document_type_id: documentUpload.document_type_id || null,
+      folder_id: documentUpload.folder_id || null,
       metadata: metadata
     };
 
@@ -488,7 +498,8 @@ export const uploadDocument = async (documentUpload: DocumentUpload, userId: str
           title: documentUpload.title,
           status: 'draft',
           created_by: userId,
-          file_path: filePath
+          file_path: filePath,
+          folder_id: documentUpload.folder_id || null
         }])
         .select()
         .single();
