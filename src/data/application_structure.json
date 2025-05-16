@@ -1,0 +1,609 @@
+{
+  "product": {
+    "name": "DocuFlow Realty Hub",
+    "description": "A document management system for Indian real estate professionals",
+    "version": "1.0"
+  },
+  "destinations": [
+    {
+      "name": "Document Repository",
+      "description": "Central document storage system",
+      "type": "storage"
+    },
+    {
+      "name": "Approval System",
+      "description": "Workflow for document approvals",
+      "type": "workflow"
+    },
+    {
+      "name": "Template Library",
+      "description": "Repository of document templates",
+      "type": "storage"
+    },
+    {
+      "name": "Reports",
+      "description": "Analytics and reporting system",
+      "type": "analytics"
+    }
+  ],
+  "roles": [
+    {
+      "name": "Admin",
+      "description": "Administrator with full system access",
+      "permissions": [
+        "view_documents",
+        "create_documents",
+        "edit_documents",
+        "delete_documents",
+        "approve_documents",
+        "manage_users",
+        "manage_roles",
+        "view_reports"
+      ]
+    },
+    {
+      "name": "User",
+      "description": "Regular user with standard permissions",
+      "permissions": [
+        "view_documents",
+        "create_documents"
+      ]
+    },
+    {
+      "name": "Approver",
+      "description": "User who can approve documents",
+      "permissions": [
+        "view_documents",
+        "approve_documents",
+        "view_reports"
+      ]
+    }
+  ],
+  "permissions": [
+    {
+      "id": "view_documents",
+      "name": "View Documents",
+      "description": "Permission to view documents"
+    },
+    {
+      "id": "create_documents",
+      "name": "Create Documents",
+      "description": "Permission to create new documents"
+    },
+    {
+      "id": "edit_documents",
+      "name": "Edit Documents",
+      "description": "Permission to edit existing documents"
+    },
+    {
+      "id": "delete_documents",
+      "name": "Delete Documents",
+      "description": "Permission to delete documents"
+    },
+    {
+      "id": "approve_documents",
+      "name": "Approve Documents",
+      "description": "Permission to approve documents in workflow"
+    },
+    {
+      "id": "manage_users",
+      "name": "Manage Users",
+      "description": "Permission to manage user accounts"
+    },
+    {
+      "id": "manage_roles",
+      "name": "Manage Roles",
+      "description": "Permission to manage roles and permissions"
+    },
+    {
+      "id": "view_reports",
+      "name": "View Reports",
+      "description": "Permission to view system reports and analytics"
+    }
+  ],
+  "actions": [
+    {
+      "name": "Upload",
+      "description": "Upload a document to the system",
+      "module": "Documents"
+    },
+    {
+      "name": "Download",
+      "description": "Download a document from the system",
+      "module": "Documents"
+    },
+    {
+      "name": "View",
+      "description": "View a document's details and content",
+      "module": "Documents"
+    },
+    {
+      "name": "Edit",
+      "description": "Edit a document's metadata",
+      "module": "Documents"
+    },
+    {
+      "name": "Delete",
+      "description": "Delete a document from the system",
+      "module": "Documents"
+    },
+    {
+      "name": "Approve",
+      "description": "Approve a document in workflow",
+      "module": "Approvals"
+    },
+    {
+      "name": "Reject",
+      "description": "Reject a document in workflow",
+      "module": "Approvals"
+    },
+    {
+      "name": "Comment",
+      "description": "Add a comment to a document",
+      "module": "Documents"
+    },
+    {
+      "name": "CreateFolder",
+      "description": "Create a new folder for document organization",
+      "module": "Folders"
+    },
+    {
+      "name": "MoveDocument",
+      "description": "Move a document to a different folder",
+      "module": "Documents"
+    },
+    {
+      "name": "CreateTemplate",
+      "description": "Create a new document template",
+      "module": "Templates"
+    },
+    {
+      "name": "UseTemplate",
+      "description": "Use a template to create a new document",
+      "module": "Templates"
+    }
+  ],
+  "status_types": [
+    {
+      "name": "draft",
+      "description": "Document is in draft state",
+      "is_initial": true,
+      "is_terminal": false
+    },
+    {
+      "name": "pending",
+      "description": "Document is pending approval",
+      "is_initial": false,
+      "is_terminal": false
+    },
+    {
+      "name": "approved",
+      "description": "Document has been approved",
+      "is_initial": false,
+      "is_terminal": true
+    },
+    {
+      "name": "rejected",
+      "description": "Document has been rejected",
+      "is_initial": false,
+      "is_terminal": true
+    }
+  ],
+  "data_types": [
+    {
+      "name": "Text",
+      "description": "Text data type for document titles, descriptions, etc.",
+      "validation": ".*"
+    },
+    {
+      "name": "Number",
+      "description": "Numeric data type for file sizes, counts, etc.",
+      "validation": "^\\d+$"
+    },
+    {
+      "name": "Date",
+      "description": "Date data type for timestamps",
+      "validation": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    {
+      "name": "File",
+      "description": "File data type for document uploads",
+      "validation": ".*"
+    },
+    {
+      "name": "UUID",
+      "description": "Unique identifier data type",
+      "validation": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    {
+      "name": "JSON",
+      "description": "JSON data type for metadata and complex structures",
+      "validation": ".*"
+    },
+    {
+      "name": "Boolean",
+      "description": "Boolean data type for flags and toggles",
+      "validation": "^(true|false)$"
+    }
+  ],
+  "objects": [
+    {
+      "name": "Document",
+      "description": "Main document object",
+      "is_root": true,
+      "metadata": [
+        {
+          "name": "id",
+          "data_type": "UUID",
+          "description": "Unique identifier for the document"
+        },
+        {
+          "name": "title",
+          "data_type": "Text",
+          "description": "Document title"
+        },
+        {
+          "name": "description",
+          "data_type": "Text",
+          "description": "Document description"
+        },
+        {
+          "name": "file_path",
+          "data_type": "Text",
+          "description": "Path to the document file in storage"
+        },
+        {
+          "name": "file_size",
+          "data_type": "Number",
+          "description": "Size of the document file in bytes"
+        },
+        {
+          "name": "file_type",
+          "data_type": "Text",
+          "description": "MIME type of the document file"
+        },
+        {
+          "name": "status",
+          "data_type": "Text",
+          "description": "Current status of the document"
+        },
+        {
+          "name": "created_by",
+          "data_type": "UUID",
+          "description": "ID of the user who created the document"
+        },
+        {
+          "name": "document_type_id",
+          "data_type": "UUID",
+          "description": "ID of the document type"
+        },
+        {
+          "name": "folder_id",
+          "data_type": "UUID",
+          "description": "ID of the folder containing the document"
+        },
+        {
+          "name": "metadata",
+          "data_type": "JSON",
+          "description": "Additional metadata for the document"
+        },
+        {
+          "name": "created_at",
+          "data_type": "Date",
+          "description": "Timestamp when the document was created"
+        },
+        {
+          "name": "updated_at",
+          "data_type": "Date",
+          "description": "Timestamp when the document was last updated"
+        }
+      ]
+    },
+    {
+      "name": "Folder",
+      "description": "Folder for organizing documents",
+      "is_root": true,
+      "metadata": [
+        {
+          "name": "id",
+          "data_type": "UUID",
+          "description": "Unique identifier for the folder"
+        },
+        {
+          "name": "name",
+          "data_type": "Text",
+          "description": "Folder name"
+        },
+        {
+          "name": "description",
+          "data_type": "Text",
+          "description": "Folder description"
+        },
+        {
+          "name": "parent_id",
+          "data_type": "UUID",
+          "description": "ID of the parent folder"
+        },
+        {
+          "name": "created_by",
+          "data_type": "UUID",
+          "description": "ID of the user who created the folder"
+        },
+        {
+          "name": "created_at",
+          "data_type": "Date",
+          "description": "Timestamp when the folder was created"
+        },
+        {
+          "name": "updated_at",
+          "data_type": "Date",
+          "description": "Timestamp when the folder was last updated"
+        },
+        {
+          "name": "is_deleted",
+          "data_type": "Boolean",
+          "description": "Flag indicating if the folder is deleted"
+        }
+      ]
+    },
+    {
+      "name": "Template",
+      "description": "Document template",
+      "is_root": true,
+      "metadata": [
+        {
+          "name": "id",
+          "data_type": "UUID",
+          "description": "Unique identifier for the template"
+        },
+        {
+          "name": "title",
+          "data_type": "Text",
+          "description": "Template title"
+        },
+        {
+          "name": "description",
+          "data_type": "Text",
+          "description": "Template description"
+        },
+        {
+          "name": "file_path",
+          "data_type": "Text",
+          "description": "Path to the template file in storage"
+        },
+        {
+          "name": "created_by",
+          "data_type": "UUID",
+          "description": "ID of the user who created the template"
+        },
+        {
+          "name": "created_at",
+          "data_type": "Date",
+          "description": "Timestamp when the template was created"
+        },
+        {
+          "name": "updated_at",
+          "data_type": "Date",
+          "description": "Timestamp when the template was last updated"
+        },
+        {
+          "name": "placeholders",
+          "data_type": "JSON",
+          "description": "Placeholder fields in the template"
+        }
+      ]
+    },
+    {
+      "name": "Approval",
+      "description": "Document approval record",
+      "is_root": false,
+      "parent_object": "Document",
+      "metadata": [
+        {
+          "name": "id",
+          "data_type": "UUID",
+          "description": "Unique identifier for the approval"
+        },
+        {
+          "name": "document_id",
+          "data_type": "UUID",
+          "description": "ID of the document being approved"
+        },
+        {
+          "name": "approver_id",
+          "data_type": "UUID",
+          "description": "ID of the user who is approving"
+        },
+        {
+          "name": "status",
+          "data_type": "Text",
+          "description": "Status of the approval (pending, approved, rejected)"
+        },
+        {
+          "name": "comments",
+          "data_type": "Text",
+          "description": "Comments provided by the approver"
+        },
+        {
+          "name": "approved_at",
+          "data_type": "Date",
+          "description": "Timestamp when the document was approved/rejected"
+        },
+        {
+          "name": "created_at",
+          "data_type": "Date",
+          "description": "Timestamp when the approval request was created"
+        },
+        {
+          "name": "order_sequence",
+          "data_type": "Number",
+          "description": "Order in the approval sequence"
+        }
+      ]
+    },
+    {
+      "name": "Comment",
+      "description": "Comment on a document",
+      "is_root": false,
+      "parent_object": "Document",
+      "metadata": [
+        {
+          "name": "id",
+          "data_type": "UUID",
+          "description": "Unique identifier for the comment"
+        },
+        {
+          "name": "document_id",
+          "data_type": "UUID",
+          "description": "ID of the document being commented on"
+        },
+        {
+          "name": "user_id",
+          "data_type": "UUID",
+          "description": "ID of the user who created the comment"
+        },
+        {
+          "name": "content",
+          "data_type": "Text",
+          "description": "Content of the comment"
+        },
+        {
+          "name": "created_at",
+          "data_type": "Date",
+          "description": "Timestamp when the comment was created"
+        },
+        {
+          "name": "updated_at",
+          "data_type": "Date",
+          "description": "Timestamp when the comment was last updated"
+        }
+      ]
+    },
+    {
+      "name": "User",
+      "description": "User account",
+      "is_root": true,
+      "metadata": [
+        {
+          "name": "id",
+          "data_type": "UUID",
+          "description": "Unique identifier for the user"
+        },
+        {
+          "name": "name",
+          "data_type": "Text",
+          "description": "User's full name"
+        },
+        {
+          "name": "email",
+          "data_type": "Text",
+          "description": "User's email address"
+        },
+        {
+          "name": "avatar_url",
+          "data_type": "Text",
+          "description": "URL to the user's avatar image"
+        },
+        {
+          "name": "status",
+          "data_type": "Text",
+          "description": "User account status (active, inactive)"
+        },
+        {
+          "name": "role",
+          "data_type": "Text",
+          "description": "User's role in the system"
+        },
+        {
+          "name": "created_at",
+          "data_type": "Date",
+          "description": "Timestamp when the user account was created"
+        },
+        {
+          "name": "updated_at",
+          "data_type": "Date",
+          "description": "Timestamp when the user account was last updated"
+        }
+      ]
+    },
+    {
+      "name": "DocumentType",
+      "description": "Type of document",
+      "is_root": true,
+      "metadata": [
+        {
+          "name": "id",
+          "data_type": "UUID",
+          "description": "Unique identifier for the document type"
+        },
+        {
+          "name": "name",
+          "data_type": "Text",
+          "description": "Name of the document type"
+        },
+        {
+          "name": "description",
+          "data_type": "Text",
+          "description": "Description of the document type"
+        },
+        {
+          "name": "required_approvals",
+          "data_type": "Number",
+          "description": "Number of approvals required for this document type"
+        },
+        {
+          "name": "sla",
+          "data_type": "Number",
+          "description": "Service Level Agreement in hours"
+        },
+        {
+          "name": "created_at",
+          "data_type": "Date",
+          "description": "Timestamp when the document type was created"
+        },
+        {
+          "name": "updated_at",
+          "data_type": "Date",
+          "description": "Timestamp when the document type was last updated"
+        }
+      ]
+    },
+    {
+      "name": "ActivityLog",
+      "description": "Log of user activities",
+      "is_root": true,
+      "metadata": [
+        {
+          "name": "id",
+          "data_type": "UUID",
+          "description": "Unique identifier for the activity log"
+        },
+        {
+          "name": "user_id",
+          "data_type": "UUID",
+          "description": "ID of the user who performed the action"
+        },
+        {
+          "name": "document_id",
+          "data_type": "UUID",
+          "description": "ID of the document involved (if applicable)"
+        },
+        {
+          "name": "action",
+          "data_type": "Text",
+          "description": "Type of action performed"
+        },
+        {
+          "name": "details",
+          "data_type": "JSON",
+          "description": "Additional details about the action"
+        },
+        {
+          "name": "created_at",
+          "data_type": "Date",
+          "description": "Timestamp when the activity occurred"
+        }
+      ]
+    }
+  ]
+}

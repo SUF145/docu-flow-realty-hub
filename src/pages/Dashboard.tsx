@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import StatCard from "@/components/dashboard/StatCard";
 import RecentActivity from "@/components/dashboard/RecentActivity";
 import PendingApprovals from "@/components/dashboard/PendingApprovals";
-import DocumentUploadModal from "@/components/documents/DocumentUploadModal";
+import NewDocumentUploadModal from "@/components/documents/NewDocumentUploadModal";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getDashboardStats } from "@/lib/dashboard";
@@ -123,11 +123,17 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-4">
-              <Button className="h-24 flex-col" onClick={() => setIsUploadModalOpen(true)}>
+              <Button className="h-24 flex-col" onClick={(e) => {
+                e.preventDefault();
+                setIsUploadModalOpen(true);
+              }}>
                 <FileText className="h-6 w-6 mb-2" />
                 <span>Upload Document</span>
               </Button>
-              <Button className="h-24 flex-col" variant="outline" onClick={() => setIsUploadModalOpen(true)}>
+              <Button className="h-24 flex-col" variant="outline" onClick={(e) => {
+                e.preventDefault();
+                setIsUploadModalOpen(true);
+              }}>
                 <CheckSquare className="h-6 w-6 mb-2" />
                 <span>Start Approval Flow</span>
               </Button>
@@ -188,7 +194,10 @@ const Dashboard = () => {
                   variant="outline"
                   size="sm"
                   className="mt-2"
-                  onClick={() => setIsUploadModalOpen(true)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setIsUploadModalOpen(true);
+                  }}
                 >
                   Upload Your First Document
                 </Button>
@@ -198,7 +207,7 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      <DocumentUploadModal
+      <NewDocumentUploadModal
         isOpen={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
         onSuccess={() => {

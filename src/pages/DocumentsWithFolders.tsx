@@ -4,7 +4,7 @@ import DocumentGrid from "@/components/documents/DocumentGrid";
 import SimpleFolderList from "@/components/folders/SimpleFolderList";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
-import DocumentUploadModal from "@/components/documents/DocumentUploadModal";
+import NewDocumentUploadModal from "@/components/documents/NewDocumentUploadModal";
 import { supabase } from "@/integrations/supabase/client";
 
 const DocumentsWithFolders = () => {
@@ -70,7 +70,10 @@ const DocumentsWithFolders = () => {
               Browse and manage your documents
             </p>
           </div>
-          <Button onClick={() => setIsUploadModalOpen(true)}>
+          <Button onClick={(e) => {
+            e.preventDefault();
+            setIsUploadModalOpen(true);
+          }}>
             <Plus className="mr-2 h-4 w-4" />
             Upload Document
           </Button>
@@ -78,7 +81,7 @@ const DocumentsWithFolders = () => {
 
         <DocumentGrid folderId={folderId} />
 
-        <DocumentUploadModal
+        <NewDocumentUploadModal
           isOpen={isUploadModalOpen}
           onClose={() => setIsUploadModalOpen(false)}
           currentFolderId={folderId}

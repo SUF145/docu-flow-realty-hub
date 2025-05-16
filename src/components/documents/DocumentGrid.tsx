@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import DocumentCard from "./DocumentCard";
-import DocumentUploadModal from "./DocumentUploadModal";
+import NewDocumentUploadModal from "./NewDocumentUploadModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -240,7 +240,10 @@ const DocumentGrid = ({ folderId, includeSubfolders = true }: DocumentGridProps)
             </Button>
           </div>
 
-          <Button className="gap-1" onClick={() => setIsUploadModalOpen(true)}>
+          <Button className="gap-1" onClick={(e) => {
+            e.preventDefault();
+            setIsUploadModalOpen(true);
+          }}>
             <Upload size={16} className="mr-1" />
             Upload
           </Button>
@@ -309,14 +312,17 @@ const DocumentGrid = ({ folderId, includeSubfolders = true }: DocumentGridProps)
       ) : (
         <div className="p-12 text-center border border-dashed rounded-md">
           <p className="text-muted-foreground mb-4">No documents found</p>
-          <Button onClick={() => setIsUploadModalOpen(true)}>
+          <Button onClick={(e) => {
+            e.preventDefault();
+            setIsUploadModalOpen(true);
+          }}>
             <Plus size={16} className="mr-1" />
             Upload Document
           </Button>
         </div>
       )}
 
-      <DocumentUploadModal
+      <NewDocumentUploadModal
         isOpen={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
         currentFolderId={folderId}

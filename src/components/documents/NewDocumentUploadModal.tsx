@@ -30,19 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Check, ChevronsUpDown, Upload, X } from "lucide-react";
+import { Upload, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { uploadDocument } from "@/lib/documents";
 import { getDocumentTypes, getUsers } from "@/lib/supabase";
@@ -77,14 +65,14 @@ const documentUploadSchema = z.object({
 
 type DocumentUploadFormData = z.infer<typeof documentUploadSchema>;
 
-interface DocumentUploadModalProps {
+interface NewDocumentUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: (documentId: string) => void;
   currentFolderId?: string;
 }
 
-const DocumentUploadModal = ({ isOpen, onClose, onSuccess, currentFolderId }: DocumentUploadModalProps) => {
+const NewDocumentUploadModal = ({ isOpen, onClose, onSuccess, currentFolderId }: NewDocumentUploadModalProps) => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
@@ -109,7 +97,7 @@ const DocumentUploadModal = ({ isOpen, onClose, onSuccess, currentFolderId }: Do
   useEffect(() => {
     const fetchData = async () => {
       try {
-        console.log("Fetching data for document upload modal...");
+        console.log("Fetching data for new document upload modal...");
 
         // Fetch document types, users, and folders separately to better handle errors
         let docTypes = [];
@@ -182,40 +170,6 @@ const DocumentUploadModal = ({ isOpen, onClose, onSuccess, currentFolderId }: Do
         setFolders(foldersList);
       } catch (error) {
         console.error("Error fetching data for document upload:", error);
-
-        // Set default values even if there's an error
-        setDocumentTypes([
-          { id: "1", name: "Contract", description: "Legal contract documents" },
-          { id: "2", name: "Invoice", description: "Payment invoices" },
-          { id: "3", name: "Report", description: "Analysis and reporting documents" }
-        ]);
-
-        setUsers([
-          { id: '1', name: 'John Doe', email: 'john.doe@example.com', role: 'Admin' },
-          { id: '2', name: 'Jane Smith', email: 'jane.smith@example.com', role: 'User' },
-          { id: '3', name: 'Bob Johnson', email: 'bob.johnson@example.com', role: 'User' }
-        ]);
-
-        setFolders([
-          {
-            id: '1',
-            name: 'Root',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            is_deleted: false,
-            children: [
-              {
-                id: '2',
-                name: 'Contracts',
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-                is_deleted: false,
-                children: []
-              }
-            ]
-          }
-        ]);
-
         toast({
           title: "Warning",
           description: "Using sample data. Some features may be limited.",
@@ -226,7 +180,7 @@ const DocumentUploadModal = ({ isOpen, onClose, onSuccess, currentFolderId }: Do
 
     if (isOpen) {
       fetchData();
-
+      
       // Reset form when modal opens
       form.reset({
         title: "",
@@ -236,12 +190,15 @@ const DocumentUploadModal = ({ isOpen, onClose, onSuccess, currentFolderId }: Do
         approvers: [],
         file: undefined,
       });
-
+      
       // Explicitly set folder_id to ensure it's set correctly
       console.log("Setting folder_id to:", currentFolderId);
       if (currentFolderId) {
         form.setValue("folder_id", currentFolderId);
       }
+      
+      // Reset selected file
+      setSelectedFile(null);
     }
   }, [isOpen, toast, currentFolderId, form]);
 
@@ -315,8 +272,8 @@ const DocumentUploadModal = ({ isOpen, onClose, onSuccess, currentFolderId }: Do
   };
 
   return (
-    <Dialog
-      open={isOpen}
+    <Dialog 
+      open={isOpen} 
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
@@ -387,7 +344,6 @@ const DocumentUploadModal = ({ isOpen, onClose, onSuccess, currentFolderId }: Do
                 </FormItem>
               )}
             />
-
             <FormField
               control={form.control}
               name="folder_id"
@@ -424,53 +380,6 @@ const DocumentUploadModal = ({ isOpen, onClose, onSuccess, currentFolderId }: Do
             />
             <FormField
               control={form.control}
-              name="approvers"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Approvers (Optional)</FormLabel>
-
-                  {/* Simple Select implementation instead of Popover */}
-                  <div className="border rounded-md p-4">
-                    <p className="text-sm font-medium mb-2">
-                      {field.value?.length
-                        ? `${field.value.length} approver(s) selected`
-                        : "Select approvers"}
-                    </p>
-
-                    <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                      {users.map((user: any) => (
-                        <div
-                          key={user.id}
-                          className="flex items-center space-x-2 p-2 hover:bg-muted rounded-md cursor-pointer"
-                          onClick={() => {
-                            const current = field.value || [];
-                            const isSelected = current.includes(user.id);
-                            const newValue = isSelected
-                              ? current.filter((id) => id !== user.id)
-                              : [...current, user.id];
-                            field.onChange(newValue);
-                          }}
-                        >
-                          <div className={cn(
-                            "w-4 h-4 border rounded-sm flex items-center justify-center",
-                            field.value?.includes(user.id) ? "bg-primary border-primary" : "border-input"
-                          )}>
-                            {field.value?.includes(user.id) && (
-                              <Check className="h-3 w-3 text-primary-foreground" />
-                            )}
-                          </div>
-                          <span>{user.name} ({user.email})</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
               name="file"
               render={({ field: { value, onChange, ...fieldProps } }) => (
                 <FormItem>
@@ -486,10 +395,10 @@ const DocumentUploadModal = ({ isOpen, onClose, onSuccess, currentFolderId }: Do
                       onDragLeave={handleDrag}
                       onDragOver={handleDrag}
                       onDrop={handleDrop}
-                      onClick={() => document.getElementById("file-upload")?.click()}
+                      onClick={() => document.getElementById("file-upload-new")?.click()}
                     >
                       <input
-                        id="file-upload"
+                        id="file-upload-new"
                         type="file"
                         className="hidden"
                         accept={ACCEPTED_FILE_TYPES.join(",")}
@@ -537,19 +446,19 @@ const DocumentUploadModal = ({ isOpen, onClose, onSuccess, currentFolderId }: Do
               )}
             />
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
+              <Button 
+                type="button" 
+                variant="outline" 
                 onClick={(e) => {
                   e.preventDefault();
                   onClose();
-                }}
+                }} 
                 disabled={isLoading}
               >
                 Cancel
               </Button>
-              <Button
-                type="submit"
+              <Button 
+                type="submit" 
                 disabled={isLoading || !selectedFile}
               >
                 {isLoading ? "Uploading..." : "Upload Document"}
@@ -562,4 +471,4 @@ const DocumentUploadModal = ({ isOpen, onClose, onSuccess, currentFolderId }: Do
   );
 };
 
-export default DocumentUploadModal;
+export default NewDocumentUploadModal;
