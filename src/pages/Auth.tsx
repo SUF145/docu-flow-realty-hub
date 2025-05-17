@@ -1,11 +1,12 @@
 
 import { useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTenant } from "@/contexts/TenantContext";
 import { supabase } from "@/integrations/supabase/client";
 
 import {
@@ -52,7 +53,9 @@ const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("login");
   const { toast } = useToast();
-  const { user, signIn } = useAuth();
+  const { user, isFirstLogin, signIn } = useAuth();
+  const { currentTenant } = useTenant();
+  const navigate = useNavigate();
 
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -74,18 +77,26 @@ const Auth = () => {
   const handleLogin = async (data: LoginFormValues) => {
     setIsLoading(true);
     try {
+      // Check if tenant is selected
+      if (!currentTenant) {
+        toast({
+          title: "No tenant selected",
+          description: "Please select your organization first.",
+          variant: "destructive",
+        });
+        navigate("/");
+        return;
+      }
+
       await signIn(data.email, data.password);
-      toast({
-        title: "Login successful",
-        description: "You have been successfully logged in.",
-      });
+
+      // Login successful - toast will be shown after redirect
     } catch (error: any) {
       toast({
         title: "Login failed",
-        description: error.message || "There was a problem logging in.",
+        description: error.message ?? "There was a problem logging in.",
         variant: "destructive",
       });
-    } finally {
       setIsLoading(false);
     }
   };
@@ -93,18 +104,65 @@ const Auth = () => {
   const handleSignup = async (data: SignupFormValues) => {
     setIsLoading(true);
     try {
+      // Check if tenant is selected
+      if (!currentTenant) {
+        toast({
+          title: "No tenant selected",
+          description: "Please select your organization first.",
+          variant: "destructive",
+        });
+        navigate("/");
+        return;
+      }
+
+      // First check if the user already exists in any tenant
+      console.log(`Checking if user with email ${data.email} already exists`);
+      const { data: existingUser, error: checkError } = await supabase
+        .from('profiles')
+        .select('id, tenant_id')
+        .eq('email', data.email)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('Error checking existing user:', checkError);
+      }
+
+      if (existingUser) {
+        console.log('User already exists in tenant:', existingUser.tenant_id);
+        throw new Error('This email is already registered. Please use a different email or contact your administrator.');
+      }
+
+      console.log('Creating new user account');
       const { error } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
         options: {
           data: {
             name: data.name,
+            tenant_id: currentTenant.id
           },
         },
       });
 
       if (error) {
         throw error;
+      }
+
+      // Create a profile entry with tenant_id
+      console.log('Creating profile with tenant_id:', currentTenant.id);
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert([
+          {
+            email: data.email,
+            name: data.name,
+            tenant_id: currentTenant.id
+          }
+        ]);
+
+      if (profileError) {
+        console.error('Error creating profile:', profileError);
+        throw new Error('Error creating user profile. Please try again.');
       }
 
       toast({
@@ -115,7 +173,7 @@ const Auth = () => {
     } catch (error: any) {
       toast({
         title: "Registration failed",
-        description: error.message || "There was a problem creating your account.",
+        description: error.message ?? "There was a problem creating your account.",
         variant: "destructive",
       });
     } finally {
@@ -123,9 +181,23 @@ const Auth = () => {
     }
   };
 
-  // If user is already logged in, redirect to dashboard
-  if (user) {
+  // Redirect to tenant selection if no tenant is selected
+  if (!currentTenant) {
     return <Navigate to="/" />;
+  }
+
+  // If user is already logged in, check onboarding status
+  if (user) {
+    // Check if user has completed onboarding (from localStorage)
+    const userOnboarded = localStorage.getItem('userOnboarded') === 'true';
+
+    // If first login and not already onboarded, redirect to onboarding
+    if (isFirstLogin && !userOnboarded) {
+      console.log("First login detected and not onboarded, redirecting to onboarding");
+      return <Navigate to="/onboarding" />;
+    }
+    // Otherwise go to dashboard
+    return <Navigate to="/dashboard" />;
   }
 
   return (
@@ -188,9 +260,9 @@ const Auth = () => {
               <CardFooter className="flex flex-col">
                 <p className="text-sm text-center text-muted-foreground">
                   Don't have an account?{" "}
-                  <Button 
-                    variant="link" 
-                    className="p-0 h-auto" 
+                  <Button
+                    variant="link"
+                    className="p-0 h-auto"
                     onClick={() => setActiveTab("signup")}
                   >
                     Sign up
@@ -264,9 +336,9 @@ const Auth = () => {
               <CardFooter className="flex flex-col">
                 <p className="text-sm text-center text-muted-foreground">
                   Already have an account?{" "}
-                  <Button 
-                    variant="link" 
-                    className="p-0 h-auto" 
+                  <Button
+                    variant="link"
+                    className="p-0 h-auto"
                     onClick={() => setActiveTab("login")}
                   >
                     Login
