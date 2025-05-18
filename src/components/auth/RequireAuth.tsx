@@ -33,7 +33,32 @@ const RequireAuth = () => {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  // Always redirect to onboarding if not already on the onboarding page
+  // Check for bypass flag or completed parameter
+  const bypassRedirect = sessionStorage.getItem('bypassOnboardingRedirect') === 'true';
+  const urlParams = new URLSearchParams(window.location.search);
+  const completedParam = urlParams.get('completed') === 'true';
+
+  console.log("RequireAuth - Bypass flag:", bypassRedirect);
+  console.log("RequireAuth - Completed parameter:", completedParam);
+
+  // Check if user has completed onboarding
+  const userOnboarded = localStorage.getItem('userOnboarded') === 'true';
+  console.log("RequireAuth - User onboarded status:", userOnboarded);
+
+  // If bypass flag or completed parameter is set, or user is onboarded, allow access
+  if (bypassRedirect || completedParam || userOnboarded) {
+    console.log("RequireAuth - Bypassing onboarding redirect");
+
+    // Clear the bypass flag after using it
+    if (bypassRedirect) {
+      sessionStorage.removeItem('bypassOnboardingRedirect');
+    }
+
+    // Allow access to protected routes
+    return <Outlet />;
+  }
+
+  // Otherwise, redirect to onboarding if not already on the onboarding page
   if (!location.pathname.includes('/onboarding')) {
     console.log("RequireAuth - Redirecting to onboarding from:", location.pathname);
 

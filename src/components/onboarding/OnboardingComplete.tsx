@@ -49,6 +49,9 @@ const OnboardingComplete = ({ isCustom }: OnboardingCompleteProps) => {
     // Store onboarding completion in localStorage for persistence
     localStorage.setItem('userOnboarded', 'true');
 
+    // Set a special flag to bypass the onboarding redirect
+    sessionStorage.setItem('bypassOnboardingRedirect', 'true');
+
     // Log tenant information before navigation
     try {
       const storedTenant = sessionStorage.getItem('currentTenant');
@@ -62,13 +65,18 @@ const OnboardingComplete = ({ isCustom }: OnboardingCompleteProps) => {
       console.error("Error parsing stored tenant before navigation:", error);
     }
 
-    // Force a full page reload to clear any stale state
-    window.location.replace("/dashboard");
+    console.log("Directly navigating to dashboard, bypassing RequireAuth redirect");
+
+    // Force a full page reload with a special parameter to bypass the onboarding redirect
+    window.location.href = "/dashboard?completed=true";
   };
 
   const handleGoToDocuments = () => {
     // Store onboarding completion in localStorage for persistence
     localStorage.setItem('userOnboarded', 'true');
+
+    // Set a special flag to bypass the onboarding redirect
+    sessionStorage.setItem('bypassOnboardingRedirect', 'true');
 
     // Log tenant information before navigation
     try {
@@ -88,8 +96,10 @@ const OnboardingComplete = ({ isCustom }: OnboardingCompleteProps) => {
       console.error("Error parsing stored tenant before navigation to documents:", error);
     }
 
-    // Force a full page reload to clear any stale state
-    window.location.replace("/dashboard/documents");
+    console.log("Directly navigating to documents page, bypassing RequireAuth redirect");
+
+    // Force a full page reload with a special parameter to bypass the onboarding redirect
+    window.location.href = "/dashboard/documents?completed=true";
   };
 
   return (

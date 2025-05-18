@@ -94,7 +94,28 @@ const Onboarding = () => {
     );
   }
 
-  // Always clear the onboarded flag to ensure onboarding screens appear
+  // Check for bypass flag or completed parameter
+  const bypassRedirect = sessionStorage.getItem('bypassOnboardingRedirect') === 'true';
+  const urlParams = new URLSearchParams(window.location.search);
+  const completedParam = urlParams.get('completed') === 'true';
+
+  // If bypass flag or completed parameter is set, redirect to documents
+  if (bypassRedirect || completedParam) {
+    console.log("Onboarding.tsx - Bypass flag or completed parameter detected, redirecting to documents");
+
+    // Clear the bypass flag after using it
+    if (bypassRedirect) {
+      sessionStorage.removeItem('bypassOnboardingRedirect');
+    }
+
+    // Ensure user is marked as onboarded
+    localStorage.setItem('userOnboarded', 'true');
+
+    // Redirect to documents
+    return <Navigate to="/dashboard/documents?completed=true" />;
+  }
+
+  // Otherwise, clear the onboarded flag to ensure onboarding screens appear
   localStorage.removeItem('userOnboarded');
 
   console.log("Onboarding.tsx - Forcing onboarding screens to appear");

@@ -16,14 +16,27 @@ const DocumentsWithFolders = () => {
   const navigate = useNavigate();
   const [folderName, setFolderName] = useState<string>("");
 
-  // Check if user is onboarded
+  // Check if user is onboarded and handle completed parameter
   useEffect(() => {
+    // Check for completed parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const completedParam = urlParams.get('completed') === 'true';
+
+    if (completedParam) {
+      console.log("Completed parameter detected, ensuring user is marked as onboarded");
+      localStorage.setItem('userOnboarded', 'true');
+
+      // Remove the completed parameter from the URL without reloading the page
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+    }
+
     const isOnboarded = localStorage.getItem('userOnboarded') === 'true';
 
-    if (!isOnboarded && user) {
+    if (!isOnboarded && user && !completedParam) {
       console.log("User is not onboarded, redirecting to onboarding");
       navigate('/onboarding');
-    } else if (isOnboarded && user) {
+    } else if ((isOnboarded || completedParam) && user) {
       console.log("User is onboarded, checking for folders");
       console.log("User ID:", user.id);
       console.log("User metadata:", user.user_metadata);
