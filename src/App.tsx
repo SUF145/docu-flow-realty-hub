@@ -56,8 +56,10 @@ const App = () => {
                   {/* Public Routes */}
                   <Route path="/" element={<TenantSelect />} />
                   <Route path="/auth" element={<Auth />} />
-                  <Route path="/onboarding" element={<Onboarding />} />
                   <Route path="/test" element={<TestPage />} />
+
+                  {/* Onboarding Route - Moved outside of RequireAuth to avoid circular redirects */}
+                  <Route path="/onboarding" element={<Onboarding />} />
 
                   {/* Protected Routes */}
                   <Route element={<RequireAuth />}>

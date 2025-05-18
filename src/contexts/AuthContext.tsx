@@ -96,44 +96,85 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
               return;
             }
 
+            console.log(`Checking onboarding status for user ${userData.id} in tenant ${currentTenant.id}`);
+
+            // Use maybeSingle instead of single to avoid 406 errors
             const { data, error } = await supabase
               .from('user_onboarding')
-              .select('is_onboarded')
+              .select('*')
               .eq('user_id', userData.id)
               .eq('tenant_id', currentTenant.id)
-              .single();
+              .maybeSingle();
+
+            console.log("Onboarding query result:", { data, error });
 
             // Check if user has completed onboarding (from localStorage)
             const userOnboarded = localStorage.getItem('userOnboarded') === 'true';
+            console.log("AuthContext - User onboarded status from localStorage:", userOnboarded);
 
-            if (userOnboarded) {
+            // For debugging, check if there's a URL parameter to force onboarding
+            const urlParams = new URLSearchParams(window.location.search);
+            const forceOnboarding = urlParams.get('forceOnboarding') === 'true';
+
+            if (forceOnboarding) {
+              console.log("Force onboarding parameter detected, setting isFirstLogin to true");
+              localStorage.removeItem('userOnboarded');
+              setIsFirstLogin(true);
+            } else if (userOnboarded) {
               // If localStorage says user is onboarded, trust that
               console.log("User marked as onboarded in localStorage");
               setIsFirstLogin(false);
 
               // Update the database record if needed
               if (error || !data || !data.is_onboarded) {
-                await supabase
+                console.log("Updating user onboarding status in database");
+
+                // First check if a record exists
+                const { data: existingRecord, error: checkError } = await supabase
                   .from('user_onboarding')
-                  .upsert([{
-                    user_id: userData.id,
-                    tenant_id: currentTenant.id,
-                    is_onboarded: true,
-                    onboarded_at: new Date().toISOString()
-                  }], { onConflict: 'user_id,tenant_id' });
+                  .select('*')
+                  .eq('user_id', userData.id)
+                  .eq('tenant_id', currentTenant.id)
+                  .maybeSingle();
+
+                console.log("Existing onboarding record check:", { existingRecord, checkError });
+
+                if (existingRecord) {
+                  // Update existing record
+                  console.log("Updating existing onboarding record");
+                  await supabase
+                    .from('user_onboarding')
+                    .update({
+                      is_onboarded: true,
+                      onboarded_at: new Date().toISOString()
+                    })
+                    .eq('user_id', userData.id)
+                    .eq('tenant_id', currentTenant.id);
+                } else {
+                  // Insert new record
+                  console.log("Creating new onboarding record");
+                  await supabase
+                    .from('user_onboarding')
+                    .insert([{
+                      user_id: userData.id,
+                      tenant_id: currentTenant.id,
+                      is_onboarded: true,
+                      onboarded_at: new Date().toISOString()
+                    }]);
+                }
               }
             } else if (error || !data) {
               // No onboarding record found, this might be first login
               console.log("No onboarding record found, marking as first login");
               setIsFirstLogin(true);
-              // Initialize onboarding record
+              // Initialize onboarding record using upsert to avoid duplicate key errors
               await supabase
                 .from('user_onboarding')
-                .insert([{
+                .upsert({
                   user_id: userData.id,
                   tenant_id: currentTenant.id,
                   is_onboarded: false
-                }]);
+                }, { onConflict: 'user_id' });
             } else {
               // Onboarding record exists, check if onboarded
               console.log("Onboarding record exists, is_onboarded:", data.is_onboarded);
@@ -200,42 +241,83 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           if (event === 'SIGNED_IN' && currentTenant) {
             setIsCheckingOnboarding(true);
             try {
+              console.log(`Checking onboarding status for user ${userData.id} in tenant ${currentTenant.id} (auth state change)`);
+
+              // Use maybeSingle instead of single to avoid 406 errors
               const { data, error } = await supabase
                 .from('user_onboarding')
-                .select('is_onboarded')
+                .select('*')
                 .eq('user_id', userData.id)
                 .eq('tenant_id', currentTenant.id)
-                .single();
+                .maybeSingle();
+
+              console.log("Onboarding query result (auth state change):", { data, error });
 
               // Check if user has completed onboarding (from localStorage)
               const userOnboarded = localStorage.getItem('userOnboarded') === 'true';
+              console.log("AuthContext (auth state change) - User onboarded status from localStorage:", userOnboarded);
 
-              if (userOnboarded) {
+              // For debugging, check if there's a URL parameter to force onboarding
+              const urlParams = new URLSearchParams(window.location.search);
+              const forceOnboarding = urlParams.get('forceOnboarding') === 'true';
+
+              if (forceOnboarding) {
+                console.log("Force onboarding parameter detected, setting isFirstLogin to true (auth state change)");
+                localStorage.removeItem('userOnboarded');
+                setIsFirstLogin(true);
+              } else if (userOnboarded) {
                 // If localStorage says user is onboarded, trust that
                 console.log("User marked as onboarded in localStorage (auth state change)");
                 setIsFirstLogin(false);
 
                 // Update the database record if needed
                 if (error || !data || !data.is_onboarded) {
-                  await supabase
+                  console.log("Updating user onboarding status in database (auth state change)");
+
+                  // First check if a record exists
+                  const { data: existingRecord, error: checkError } = await supabase
                     .from('user_onboarding')
-                    .upsert([{
-                      user_id: userData.id,
-                      tenant_id: currentTenant.id,
-                      is_onboarded: true,
-                      onboarded_at: new Date().toISOString()
-                    }], { onConflict: 'user_id,tenant_id' });
+                    .select('*')
+                    .eq('user_id', userData.id)
+                    .eq('tenant_id', currentTenant.id)
+                    .maybeSingle();
+
+                  console.log("Existing onboarding record check (auth state change):", { existingRecord, checkError });
+
+                  if (existingRecord) {
+                    // Update existing record
+                    console.log("Updating existing onboarding record (auth state change)");
+                    await supabase
+                      .from('user_onboarding')
+                      .update({
+                        is_onboarded: true,
+                        onboarded_at: new Date().toISOString()
+                      })
+                      .eq('user_id', userData.id)
+                      .eq('tenant_id', currentTenant.id);
+                  } else {
+                    // Insert new record
+                    console.log("Creating new onboarding record (auth state change)");
+                    await supabase
+                      .from('user_onboarding')
+                      .insert([{
+                        user_id: userData.id,
+                        tenant_id: currentTenant.id,
+                        is_onboarded: true,
+                        onboarded_at: new Date().toISOString()
+                      }]);
+                  }
                 }
               } else if (error || !data) {
                 setIsFirstLogin(true);
-                // Initialize onboarding record
+                // Initialize onboarding record using upsert to avoid duplicate key errors
                 await supabase
                   .from('user_onboarding')
-                  .insert([{
+                  .upsert({
                     user_id: userData.id,
                     tenant_id: currentTenant.id,
                     is_onboarded: false
-                  }]);
+                  }, { onConflict: 'user_id' });
               } else {
                 setIsFirstLogin(!data.is_onboarded);
 
@@ -285,35 +367,46 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       try {
         // Check if user exists in this tenant
         console.log(`Checking if user with email ${email} exists in tenant ${currentTenant.id}`);
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id, role')
-          .eq('email', email)
-          .eq('tenant_id', currentTenant.id)
-          .maybeSingle();
 
-        if (data) {
-          console.log('User found in this tenant:', data);
-          userData = data;
-          userRole = data.role || 'user';
-        } else {
-          console.log('User not found in this tenant');
-
-          // Check if user exists in any tenant
-          const { data: anyTenantData } = await supabase
+        // First check if the role column exists in the profiles table
+        try {
+          // Try to get just the id first to avoid column errors
+          const { data: profileData, error: profileError } = await supabase
             .from('profiles')
-            .select('id, role, tenant_id')
+            .select('id')
             .eq('email', email)
+            .eq('tenant_id', currentTenant.id)
             .maybeSingle();
 
-          if (anyTenantData) {
-            console.log('User exists but belongs to a different tenant:', anyTenantData.tenant_id);
-            throw new Error('User exists but belongs to a different organization. Please contact your administrator.');
+          console.log('Profile check result:', { profileData, profileError });
+
+          if (profileData) {
+            // User exists in this tenant, but we need to handle the case where role column might not exist
+            console.log('User found in this tenant with ID:', profileData.id);
+            userData = { id: profileData.id, role: 'user' }; // Default to 'user' role
+            userRole = 'user';
           } else {
-            console.log('User does not exist in any tenant');
-            // We'll continue to authentication to check credentials
-            // If auth succeeds, we'll create a new profile for this tenant
+            console.log('User not found in this tenant');
+
+            // Check if user exists in any tenant, but only query id and tenant_id to avoid column errors
+            const { data: anyTenantData } = await supabase
+              .from('profiles')
+              .select('id, tenant_id')
+              .eq('email', email)
+              .maybeSingle();
+
+            if (anyTenantData) {
+              console.log('User exists but belongs to a different tenant:', anyTenantData.tenant_id);
+              throw new Error('User exists but belongs to a different organization. Please contact your administrator.');
+            } else {
+              console.log('User does not exist in any tenant');
+              // We'll continue to authentication to check credentials
+              // If auth succeeds, we'll create a new profile for this tenant
+            }
           }
+        } catch (columnError) {
+          console.error('Error querying profiles table (possibly missing column):', columnError);
+          // Continue to authentication as a fallback
         }
       } catch (queryError) {
         if (queryError instanceof Error) {
@@ -364,15 +457,54 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           }
 
           console.log('Creating new profile for user in this tenant');
+
+          // Create a profile object with the required fields
+          const profileData: any = {
+            id: data.user.id,
+            email: email,
+            name: data.user.user_metadata?.name || email.split('@')[0],
+            tenant_id: currentTenant.id
+          };
+
+          // Check if the role column exists in the profiles table
+          try {
+            // First try to get the column names from the profiles table
+            const { data: columnInfo, error: columnError } = await supabase
+              .rpc('get_column_names', { table_name: 'profiles' })
+              .catch(() => ({ data: null, error: new Error('RPC not available') }));
+
+            // If we can't get column info or there's an error, try a safer approach
+            if (columnError || !columnInfo) {
+              console.log('Could not get column info, using a safer approach');
+              // Try to add the role field and catch any errors
+              try {
+                profileData.role = 'user';
+              } catch (e) {
+                console.error('Error adding role field:', e);
+              }
+            } else {
+              // If we have column info, check if role exists
+              const hasRoleColumn = columnInfo.includes('role');
+              console.log('Profiles table has role column:', hasRoleColumn);
+
+              if (hasRoleColumn) {
+                profileData.role = 'user';
+              }
+            }
+          } catch (e) {
+            console.error('Error checking for role column:', e);
+            // Try to add the role field anyway and let Supabase handle any errors
+            try {
+              profileData.role = 'user';
+            } catch (e) {
+              console.error('Error adding role field:', e);
+            }
+          }
+
+          console.log('Creating profile with data:', profileData);
           await supabase
             .from('profiles')
-            .upsert({
-              id: data.user.id,
-              email: email,
-              name: data.user.user_metadata?.name || email.split('@')[0],
-              role: 'user',
-              tenant_id: currentTenant.id
-            }, { onConflict: 'id' });
+            .upsert(profileData, { onConflict: 'id' });
 
           console.log('Profile created successfully');
         } catch (profileError) {

@@ -5,6 +5,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { checkUserOnboarding, initializeUserOnboarding } from "@/lib/onboarding";
 import OnboardingWizard from "@/components/onboarding/OnboardingWizard";
 import { Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const Onboarding = () => {
   const { user, loading } = useAuth();
@@ -12,6 +13,7 @@ const Onboarding = () => {
   const [isOnboarded, setIsOnboarded] = useState<boolean | null>(null);
   const [isCheckingStatus, setIsCheckingStatus] = useState(true);
 
+  // First useEffect: Check onboarding status
   useEffect(() => {
     const checkOnboardingStatus = async () => {
       if (!user || !currentTenant) return;
@@ -37,6 +39,39 @@ const Onboarding = () => {
     }
   }, [user, currentTenant]);
 
+  // Second useEffect: Reset onboarding status in the database
+  useEffect(() => {
+    const resetOnboardingInDatabase = async () => {
+      if (!user || !currentTenant) return;
+
+      try {
+        console.log("Resetting onboarding status in database");
+
+        // Always clear the onboarded flag to ensure onboarding screens appear
+        localStorage.removeItem('userOnboarded');
+
+        const { error } = await supabase
+          .from('user_onboarding')
+          .update({
+            is_onboarded: false,
+            onboarded_at: null
+          })
+          .eq('user_id', user.id)
+          .eq('tenant_id', currentTenant.id);
+
+        if (error) {
+          console.error("Error resetting onboarding status in database:", error);
+        } else {
+          console.log("Successfully reset onboarding status in database");
+        }
+      } catch (error) {
+        console.error("Exception in resetOnboardingInDatabase:", error);
+      }
+    };
+
+    resetOnboardingInDatabase();
+  }, [user, currentTenant]);
+
   // Redirect to tenant selection if no tenant is selected
   if (!currentTenant) {
     return <Navigate to="/" />;
@@ -59,14 +94,11 @@ const Onboarding = () => {
     );
   }
 
-  // Check if user has completed onboarding (from localStorage)
-  const userOnboarded = localStorage.getItem('userOnboarded') === 'true';
+  // Always clear the onboarded flag to ensure onboarding screens appear
+  localStorage.removeItem('userOnboarded');
 
-  // If user is already onboarded (from DB or localStorage), redirect to dashboard
-  if (isOnboarded || userOnboarded) {
-    console.log("User is already onboarded, redirecting to dashboard");
-    return <Navigate to="/dashboard" />;
-  }
+  console.log("Onboarding.tsx - Forcing onboarding screens to appear");
+  console.log("Onboarding.tsx - isOnboarded from database:", isOnboarded);
 
   // Show onboarding wizard
   return <OnboardingWizard />;

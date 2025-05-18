@@ -38,6 +38,7 @@ const OnboardingWizard = () => {
   };
 
   const handleTemplateSelect = async (template: FolderTemplate | null) => {
+    console.log("Template selected:", template ? template.name : "Custom folders");
     setSelectedTemplate(template);
     setIsCustom(template === null);
     setCurrentStep(OnboardingStep.PROCESSING);
@@ -45,6 +46,7 @@ const OnboardingWizard = () => {
 
     try {
       if (!user) {
+        console.error("No authenticated user found");
         throw new Error("User not authenticated");
       }
 
@@ -52,16 +54,22 @@ const OnboardingWizard = () => {
 
       // Get tenant ID if available
       const tenantId = currentTenant?.id;
+      console.log(`Current tenant ID: ${tenantId}`);
 
       if (template) {
+        console.log(`Generating folder structure from template: ${template.name} (ID: ${template.id})`);
         // Generate folder structure from template
         success = await generateFolderStructure(template.id, user.id, tenantId);
+        console.log(`Folder structure generation result: ${success ? 'Success' : 'Failed'}`);
       } else if (selectedSegment) {
+        console.log(`Setting up custom folder structure for segment: ${selectedSegment.name}`);
         // Custom folder structure (just mark as onboarded)
         success = await completeCustomOnboarding(user.id, selectedSegment.id, tenantId);
+        console.log(`Custom onboarding result: ${success ? 'Success' : 'Failed'}`);
       }
 
       if (success) {
+        console.log("Onboarding process completed successfully");
         setCurrentStep(OnboardingStep.COMPLETE);
         toast({
           title: "Setup Complete",
@@ -70,6 +78,7 @@ const OnboardingWizard = () => {
             : "You're all set to create your custom folder structure.",
         });
       } else {
+        console.error("Failed to complete onboarding setup");
         throw new Error("Failed to complete setup");
       }
     } catch (error) {

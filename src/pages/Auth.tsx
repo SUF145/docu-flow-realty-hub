@@ -186,18 +186,15 @@ const Auth = () => {
     return <Navigate to="/" />;
   }
 
-  // If user is already logged in, check onboarding status
+  // If user is already logged in, always redirect to onboarding
   if (user) {
-    // Check if user has completed onboarding (from localStorage)
-    const userOnboarded = localStorage.getItem('userOnboarded') === 'true';
+    console.log("Auth.tsx - User is logged in, directly redirecting to onboarding");
 
-    // If first login and not already onboarded, redirect to onboarding
-    if (isFirstLogin && !userOnboarded) {
-      console.log("First login detected and not onboarded, redirecting to onboarding");
-      return <Navigate to="/onboarding" />;
-    }
-    // Otherwise go to dashboard
-    return <Navigate to="/dashboard" />;
+    // Force clear the onboarded flag to ensure onboarding screens appear
+    localStorage.removeItem('userOnboarded');
+
+    // Always redirect to onboarding after login
+    return <Navigate to="/onboarding" />;
   }
 
   return (

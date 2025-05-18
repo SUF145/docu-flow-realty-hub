@@ -6,13 +6,42 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import NewDocumentUploadModal from "@/components/documents/NewDocumentUploadModal";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 const DocumentsWithFolders = () => {
   const { folderId } = useParams<{ folderId: string }>();
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const { user } = useAuth();
 
   const navigate = useNavigate();
   const [folderName, setFolderName] = useState<string>("");
+
+  // Check if user is onboarded
+  useEffect(() => {
+    const isOnboarded = localStorage.getItem('userOnboarded') === 'true';
+
+    if (!isOnboarded && user) {
+      console.log("User is not onboarded, redirecting to onboarding");
+      navigate('/onboarding');
+    } else if (isOnboarded && user) {
+      console.log("User is onboarded, checking for folders");
+      console.log("User ID:", user.id);
+      console.log("User metadata:", user.user_metadata);
+
+      // Check session storage for tenant info
+      try {
+        const storedTenant = sessionStorage.getItem('currentTenant');
+        if (storedTenant) {
+          const tenant = JSON.parse(storedTenant);
+          console.log("Tenant from session storage:", tenant);
+        } else {
+          console.log("No tenant found in session storage");
+        }
+      } catch (error) {
+        console.error("Error parsing stored tenant:", error);
+      }
+    }
+  }, [user, navigate]);
 
   useEffect(() => {
     // If we have a folder ID, fetch the folder name

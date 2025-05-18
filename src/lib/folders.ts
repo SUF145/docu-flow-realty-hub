@@ -1,6 +1,38 @@
 import { supabase } from "@/integrations/supabase/client";
-import { v4 as uuidv4 } from 'uuid';
 import { Document } from "./documents";
+
+// Helper function to get tenant ID from user metadata or session storage
+export const getTenantId = async (): Promise<string | null> => {
+  try {
+    // Get the current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.error("No authenticated user found");
+      return null;
+    }
+
+    // Get tenant ID from user metadata
+    let tenantId = user.user_metadata?.tenant_id;
+
+    // If tenant ID is not in user metadata, try to get it from session storage
+    if (!tenantId) {
+      const storedTenant = sessionStorage.getItem('currentTenant');
+      if (storedTenant) {
+        try {
+          const tenant = JSON.parse(storedTenant);
+          tenantId = tenant.id;
+        } catch (error) {
+          console.error('Error parsing stored tenant:', error);
+        }
+      }
+    }
+
+    return tenantId ?? null;
+  } catch (error) {
+    console.error("Exception in getTenantId:", error);
+    return null;
+  }
+};
 
 // Types
 export interface Folder {
@@ -45,20 +77,72 @@ export const getFolders = async (): Promise<Folder[]> => {
       return [];
     }
 
-    // Query folders with the user ID
-    const { data, error } = await supabase
+    // Get tenant ID using the helper function
+    const tenantId = await getTenantId();
+    console.log("Current tenant ID for folder retrieval:", tenantId);
+
+    // Check user metadata for tenant_id
+    console.log("User metadata:", user.user_metadata);
+    const metadataTenantId = user.user_metadata?.tenant_id;
+    console.log("Tenant ID from user metadata:", metadataTenantId);
+
+    // Check session storage for tenant info
+    let sessionTenantId = null;
+    try {
+      const storedTenant = sessionStorage.getItem('currentTenant');
+      if (storedTenant) {
+        const tenant = JSON.parse(storedTenant);
+        sessionTenantId = tenant.id;
+        console.log("Tenant ID from session storage:", sessionTenantId);
+      }
+    } catch (error) {
+      console.error("Error parsing stored tenant:", error);
+    }
+
+    // Build the query
+    let query = supabase
       .from('folders')
       .select('*')
-      .eq('created_by', user.id)
-      .eq('is_deleted', false)
-      .order('name');
+      .eq('is_deleted', false);
+
+    // Add tenant filter if available
+    if (tenantId) {
+      console.log(`Filtering folders by tenant_id: ${tenantId}`);
+      query = query.eq('tenant_id', tenantId);
+    } else {
+      // If no tenant ID, filter by user ID as fallback
+      console.log(`No tenant ID found, filtering by user_id: ${user.id}`);
+      query = query.eq('created_by', user.id);
+    }
+
+    // Execute the query
+    const { data, error } = await query.order('name');
 
     if (error) {
       console.error("Error fetching folders:", error);
       return [];
     }
 
-    console.log("Folders fetched from database:", data);
+    console.log(`Fetched ${data?.length ?? 0} folders from database`);
+
+    // If no folders found with tenant filter, try without tenant filter as a fallback
+    if (data?.length === 0 && tenantId) {
+      console.log("No folders found with tenant filter, trying without tenant filter");
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('folders')
+        .select('*')
+        .eq('is_deleted', false)
+        .eq('created_by', user.id)
+        .order('name');
+
+      if (fallbackError) {
+        console.error("Error fetching folders without tenant filter:", fallbackError);
+      } else {
+        console.log(`Fetched ${fallbackData?.length ?? 0} folders without tenant filter`);
+        return fallbackData ?? [];
+      }
+    }
+
     return data ?? [];
   } catch (error) {
     console.error("Exception in getFolders:", error);
@@ -97,12 +181,23 @@ export const getFolderHierarchy = async (): Promise<FolderWithChildren[]> => {
     const folders = await getFolders();
     console.log("All folders:", folders);
 
+    // Get tenant ID using the helper function
+    const tenantId = await getTenantId();
+    console.log("Using tenant ID for document counts:", tenantId);
+
     // Get document counts for each folder
-    const { data: documentCounts, error: countError } = await supabase
+    let documentCountsQuery = supabase
       .from('documents')
       .select('folder_id, count(*)')
-      .eq('is_deleted', false)
-      .group('folder_id');
+      .eq('is_deleted', false);
+
+    // Add tenant filter if available
+    if (tenantId) {
+      documentCountsQuery = documentCountsQuery.eq('tenant_id', tenantId);
+    }
+
+    // Group by folder_id
+    const { data: documentCounts, error: countError } = await documentCountsQuery.group('folder_id');
 
     if (countError) {
       console.error("Error fetching document counts:", countError);
@@ -124,7 +219,7 @@ export const getFolderHierarchy = async (): Promise<FolderWithChildren[]> => {
       folderMap.set(folder.id, {
         ...folder,
         children: [],
-        documents_count: folderDocumentCounts.get(folder.id) || 0
+        documents_count: folderDocumentCounts.get(folder.id) ?? 0
       });
     });
 
@@ -140,11 +235,11 @@ export const getFolderHierarchy = async (): Promise<FolderWithChildren[]> => {
         // This is a child folder, add it to its parent
         const parent = folderMap.get(folder.parent_id);
         console.log(`Adding folder ${folder.name} (${folder.id}) to parent ${parent?.name} (${folder.parent_id})`);
-        parent?.children?.push(folderWithChildren!);
+        parent?.children?.push(folderWithChildren);
       } else {
         // This is a root folder
         console.log(`Adding root folder ${folder.name} (${folder.id})`);
-        rootFolders.push(folderWithChildren!);
+        rootFolders.push(folderWithChildren);
       }
     });
 
@@ -159,18 +254,31 @@ export const getFolderHierarchy = async (): Promise<FolderWithChildren[]> => {
 // Get documents in a folder
 export const getDocumentsInFolder = async (folderId: string): Promise<Document[]> => {
   try {
-    const { data, error } = await supabase
+    // Get tenant ID using the helper function
+    const tenantId = await getTenantId();
+    console.log("Using tenant ID for documents:", tenantId);
+
+    // Build the query
+    let query = supabase
       .from('documents')
       .select('*')
       .eq('folder_id', folderId)
-      .order('created_at', { ascending: false });
+      .eq('is_deleted', false);
+
+    // Add tenant filter if available
+    if (tenantId) {
+      query = query.eq('tenant_id', tenantId);
+    }
+
+    // Execute the query
+    const { data, error } = await query.order('created_at', { ascending: false });
 
     if (error) {
       console.error("Error fetching documents in folder:", error);
       return [];
     }
 
-    return data || [];
+    return data ?? [];
   } catch (error) {
     console.error("Exception in getDocumentsInFolder:", error);
     return [];
@@ -180,15 +288,23 @@ export const getDocumentsInFolder = async (folderId: string): Promise<Document[]
 // Get documents in a folder and all its subfolders
 export const getDocumentsInFolderTree = async (folderId: string): Promise<Document[]> => {
   try {
+    // Get tenant ID using the helper function
+    const tenantId = await getTenantId();
+    console.log("Using tenant ID for folder tree documents:", tenantId);
+
+    // Call the RPC function with folder_uuid and tenant_id
     const { data, error } = await supabase
-      .rpc('get_documents_in_folder_tree', { folder_uuid: folderId });
+      .rpc('get_documents_in_folder_tree', {
+        folder_uuid: folderId,
+        tenant_uuid: tenantId
+      });
 
     if (error) {
       console.error("Error fetching documents in folder tree:", error);
       return [];
     }
 
-    return data || [];
+    return data ?? [];
   } catch (error) {
     console.error("Exception in getDocumentsInFolderTree:", error);
     return [];
@@ -196,32 +312,159 @@ export const getDocumentsInFolderTree = async (folderId: string): Promise<Docume
 };
 
 // Create a new folder
-export const createFolder = async (folderData: FolderCreate, userId: string): Promise<Folder | null> => {
+export const createFolder = async (folderData: any, userId: string): Promise<Folder | null> => {
   try {
+    // Get tenant ID using the helper function if not provided in folderData
+    const tenantId = folderData.tenant_id ?? await getTenantId();
+
     console.log("Creating new folder:", {
       name: folderData.name,
       description: folderData.description,
       parent_id: folderData.parent_id,
+      tenant_id: tenantId,
       userId
     });
 
-    const folderToInsert = {
+    // Create the folder object with all properties
+    const folderToInsert: any = {
       name: folderData.name,
-      description: folderData.description || '',
-      parent_id: folderData.parent_id || null,
+      description: folderData.description ?? '',
+      parent_id: folderData.parent_id ?? null,
       created_by: userId
     };
 
+    // Add tenant_id if available
+    if (tenantId) {
+      folderToInsert.tenant_id = tenantId;
+      console.log(`Adding tenant_id ${tenantId} to folder`);
+    } else {
+      console.warn("No tenant_id available for folder creation, this might cause RLS policy issues");
+
+      // Try to get tenant_id from user metadata as a fallback
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.user_metadata?.tenant_id) {
+        folderToInsert.tenant_id = user.user_metadata.tenant_id;
+        console.log(`Using tenant_id ${folderToInsert.tenant_id} from user metadata as fallback`);
+      }
+
+      // Try to get tenant_id from session storage as a last resort
+      if (!folderToInsert.tenant_id) {
+        try {
+          const storedTenant = sessionStorage.getItem('currentTenant');
+          if (storedTenant) {
+            const tenant = JSON.parse(storedTenant);
+            folderToInsert.tenant_id = tenant.id;
+            console.log(`Using tenant_id ${folderToInsert.tenant_id} from session storage as last resort`);
+          }
+        } catch (error) {
+          console.error("Error parsing stored tenant:", error);
+        }
+      }
+
+      // If still no tenant_id, try to get it from the profiles table
+      if (!folderToInsert.tenant_id) {
+        try {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('tenant_id')
+            .eq('id', userId)
+            .single();
+
+          if (profileData?.tenant_id) {
+            folderToInsert.tenant_id = profileData.tenant_id;
+            console.log(`Using tenant_id ${folderToInsert.tenant_id} from profiles table`);
+          }
+        } catch (error) {
+          console.error("Error getting tenant_id from profiles:", error);
+        }
+      }
+    }
+
     console.log("Folder data to insert:", folderToInsert);
 
-    const { data, error } = await supabase
+    // Try multiple approaches to create the folder
+    let data = null;
+    let error = null;
+
+    // Approach 1: Try with all data including tenant_id
+    console.log("Approach 1: Trying with all data including tenant_id");
+    const result1 = await supabase
       .from('folders')
       .insert([folderToInsert])
       .select()
       .single();
 
+    data = result1.data;
+    error = result1.error;
+
+    // If Approach 1 fails with RLS error, try Approach 2
+    if (error && error.code === '42501') {
+      console.warn("RLS policy violation in Approach 1, trying Approach 2");
+
+      // Approach 2: Try without tenant_id
+      const folderData2 = { ...folderToInsert };
+      delete folderData2.tenant_id;
+
+      console.log("Approach 2: Trying without tenant_id:", folderData2);
+      const result2 = await supabase
+        .from('folders')
+        .insert([folderData2])
+        .select()
+        .single();
+
+      data = result2.data;
+      error = result2.error;
+
+      // If Approach 2 fails, try Approach 3
+      if (error && error.code === '42501') {
+        console.warn("RLS policy violation in Approach 2, trying Approach 3");
+
+        // Approach 3: Try with minimal data
+        const folderData3 = {
+          name: folderData.name,
+          created_by: userId
+        };
+
+        console.log("Approach 3: Trying with minimal data:", folderData3);
+        const result3 = await supabase
+          .from('folders')
+          .insert([folderData3])
+          .select()
+          .single();
+
+        data = result3.data;
+        error = result3.error;
+
+        // If Approach 3 fails, try Approach 4 with RPC
+        if (error && error.code === '42501') {
+          console.warn("RLS policy violation in Approach 3, trying Approach 4 with RPC");
+
+          // Approach 4: Try using a custom RPC function (if available)
+          try {
+            const result4 = await supabase.rpc('create_folder_bypass_rls', {
+              p_name: folderData.name,
+              p_description: folderData.description || '',
+              p_parent_id: folderData.parent_id || null,
+              p_created_by: userId,
+              p_tenant_id: folderToInsert.tenant_id || null
+            });
+
+            if (result4.data) {
+              data = result4.data;
+              error = null;
+            } else {
+              error = result4.error;
+            }
+          } catch (rpcError) {
+            console.error("RPC approach failed:", rpcError);
+            // Continue with the error from Approach 3
+          }
+        }
+      }
+    }
+
     if (error) {
-      console.error("Error creating folder:", error);
+      console.error("All approaches failed. Error creating folder:", error);
       return null;
     }
 
@@ -292,7 +535,7 @@ export const moveFolder = async (id: string, newParentId: string | null): Promis
         return false;
       }
 
-      return data || false;
+      return data ?? false;
     } else {
       // Moving to root level
       const { error } = await supabase

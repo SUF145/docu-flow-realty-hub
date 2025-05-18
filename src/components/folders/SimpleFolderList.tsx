@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Folder, FolderPlus, Home, RefreshCw } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { getFolders } from "@/lib/folders";
 import FolderCreateModal from "./FolderCreateModal";
 
 interface SimpleFolderListProps {
@@ -25,7 +25,7 @@ const SimpleFolderList = ({ className }: SimpleFolderListProps) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { folderId } = useParams<{ folderId: string }>();
-  
+
   const [folders, setFolders] = useState<SimpleFolder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -33,12 +33,12 @@ const SimpleFolderList = ({ className }: SimpleFolderListProps) => {
 
   useEffect(() => {
     fetchFolders();
-    
+
     // Set up an interval to refresh folders every 10 seconds
     const intervalId = setInterval(() => {
       fetchFolders(false);
     }, 10000);
-    
+
     // Clean up the interval when the component unmounts
     return () => clearInterval(intervalId);
   }, []);
@@ -49,38 +49,58 @@ const SimpleFolderList = ({ className }: SimpleFolderListProps) => {
     } else {
       setIsRefreshing(true);
     }
-    
+
     try {
       if (!user) {
         console.error("No user found");
         return;
       }
-      
-      // Direct query to get all folders for the current user
-      const { data, error } = await supabase
-        .from('folders')
-        .select('id, name, parent_id')
-        .eq('created_by', user.id)
-        .eq('is_deleted', false)
-        .order('name');
-      
-      if (error) {
-        console.error("Error fetching folders:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load folders. Please try again.",
-          variant: "destructive",
-        });
-        return;
+
+      console.log("Fetching folders using getFolders function");
+      console.log("Current user ID:", user.id);
+      console.log("User metadata:", user.user_metadata);
+
+      // Check session storage for tenant info
+      try {
+        const storedTenant = sessionStorage.getItem('currentTenant');
+        if (storedTenant) {
+          const tenant = JSON.parse(storedTenant);
+          console.log("Tenant from session storage:", tenant);
+        } else {
+          console.log("No tenant found in session storage");
+        }
+      } catch (error) {
+        console.error("Error parsing stored tenant:", error);
       }
-      
-      console.log("Folders fetched directly:", data);
-      setFolders(data || []);
+
+      // Use the getFolders function from lib/folders
+      const foldersData = await getFolders();
+
+      console.log("Folders fetched:", foldersData);
+
+      if (foldersData.length === 0) {
+        console.log("No folders found, checking if user is onboarded");
+        const isOnboarded = localStorage.getItem('userOnboarded') === 'true';
+        console.log("User onboarded status from localStorage:", isOnboarded);
+
+        if (isOnboarded) {
+          console.log("User is onboarded but no folders found. This might indicate an issue with folder creation or retrieval.");
+        }
+      }
+
+      // Convert to SimpleFolder type
+      const simpleFolders: SimpleFolder[] = foldersData.map(folder => ({
+        id: folder.id,
+        name: folder.name,
+        parent_id: folder.parent_id
+      }));
+
+      setFolders(simpleFolders);
     } catch (error) {
       console.error("Exception in fetchFolders:", error);
       toast({
         title: "Error",
-        description: "An unexpected error occurred. Please try again.",
+        description: "Failed to load folders. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -113,9 +133,9 @@ const SimpleFolderList = ({ className }: SimpleFolderListProps) => {
       <div className="p-3 flex items-center justify-between">
         <h3 className="font-medium text-sm">Folders</h3>
         <div className="flex gap-1">
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={handleRefresh}
             disabled={isLoading || isRefreshing}
           >
@@ -162,9 +182,9 @@ const SimpleFolderList = ({ className }: SimpleFolderListProps) => {
         ) : (
           <div className="p-4 text-center">
             <p className="text-sm text-muted-foreground">No folders found</p>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               className="mt-2"
               onClick={handleCreateFolder}
             >
@@ -174,7 +194,7 @@ const SimpleFolderList = ({ className }: SimpleFolderListProps) => {
           </div>
         )}
       </ScrollArea>
-      
+
       <FolderCreateModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}

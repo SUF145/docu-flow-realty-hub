@@ -12,7 +12,7 @@ const LoadingIndicator = () => (
 );
 
 const RequireAuth = () => {
-  const { user, loading, isFirstLogin } = useAuth();
+  const { user, loading } = useAuth();
   const { currentTenant, isLoadingTenant } = useTenant();
   const location = useLocation();
 
@@ -33,14 +33,17 @@ const RequireAuth = () => {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  // Check if user has completed onboarding (from localStorage)
-  const userOnboarded = localStorage.getItem('userOnboarded') === 'true';
+  // Always redirect to onboarding if not already on the onboarding page
+  if (!location.pathname.includes('/onboarding')) {
+    console.log("RequireAuth - Redirecting to onboarding from:", location.pathname);
 
-  // Step 3: If first login and not already onboarded, redirect to onboarding
-  if (isFirstLogin && !userOnboarded && !location.pathname.includes('/onboarding')) {
-    console.log("First login detected and not onboarded, redirecting to onboarding");
+    // Clear the onboarded flag to ensure onboarding screens appear
+    localStorage.removeItem('userOnboarded');
+
     return <Navigate to="/onboarding" state={{ from: location }} replace />;
   }
+
+  console.log("RequireAuth - Already on onboarding page, allowing access");
 
   // If all checks pass, render the protected routes
   return <Outlet />;

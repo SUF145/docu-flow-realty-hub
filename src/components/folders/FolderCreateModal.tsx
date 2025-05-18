@@ -3,6 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTenant } from "@/contexts/TenantContext";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +25,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
+import { createFolder } from "@/lib/folders";
 
 const folderCreateSchema = z.object({
   name: z.string().min(1, { message: "Folder name is required" }).max(100),
@@ -41,6 +43,7 @@ interface FolderCreateModalProps {
 
 const FolderCreateModal = ({ isOpen, onClose, parentId, onSuccess }: FolderCreateModalProps) => {
   const { user } = useAuth();
+  const { currentTenant } = useTenant();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -64,33 +67,38 @@ const FolderCreateModal = ({ isOpen, onClose, parentId, onSuccess }: FolderCreat
 
     setIsLoading(true);
     try {
+      // Get tenant ID from user metadata
+      const tenantId = user.user_metadata?.tenant_id;
+
       console.log("Creating folder with data:", {
         name: data.name,
         description: data.description,
         parent_id: parentId,
+        tenant_id: tenantId,
         userId: user.id
       });
 
-      // Direct Supabase insert for more control
-      const { data: newFolder, error } = await supabase
-        .from('folders')
-        .insert([
-          {
-            name: data.name,
-            description: data.description || '',
-            parent_id: parentId || null,
-            created_by: user.id
-          }
-        ])
-        .select()
-        .single();
+      // Create folder data object
+      const folderData: any = {
+        name: data.name,
+        description: data.description || '',
+        parent_id: parentId || null
+      };
 
-      if (error) {
-        console.error("Error creating folder via direct insert:", error);
-        throw new Error(`Failed to create folder: ${error.message}`);
+      // Add tenant_id if available
+      if (tenantId) {
+        folderData.tenant_id = tenantId;
+        console.log(`Adding tenant_id ${tenantId} to folder`);
       }
 
-      console.log("Folder created successfully via direct insert:", newFolder);
+      // Use the createFolder function from lib/folders
+      const newFolder = await createFolder(folderData, user.id);
+
+      if (!newFolder) {
+        throw new Error("Failed to create folder");
+      }
+
+      console.log("Folder created successfully:", newFolder);
 
       toast({
         title: "Folder Created",

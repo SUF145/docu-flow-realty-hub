@@ -49,6 +49,19 @@ const OnboardingComplete = ({ isCustom }: OnboardingCompleteProps) => {
     // Store onboarding completion in localStorage for persistence
     localStorage.setItem('userOnboarded', 'true');
 
+    // Log tenant information before navigation
+    try {
+      const storedTenant = sessionStorage.getItem('currentTenant');
+      if (storedTenant) {
+        const tenant = JSON.parse(storedTenant);
+        console.log("Navigating to dashboard with tenant:", tenant);
+      } else {
+        console.warn("No tenant found in session storage before navigation");
+      }
+    } catch (error) {
+      console.error("Error parsing stored tenant before navigation:", error);
+    }
+
     // Force a full page reload to clear any stale state
     window.location.replace("/dashboard");
   };
@@ -56,6 +69,24 @@ const OnboardingComplete = ({ isCustom }: OnboardingCompleteProps) => {
   const handleGoToDocuments = () => {
     // Store onboarding completion in localStorage for persistence
     localStorage.setItem('userOnboarded', 'true');
+
+    // Log tenant information before navigation
+    try {
+      const storedTenant = sessionStorage.getItem('currentTenant');
+      if (storedTenant) {
+        const tenant = JSON.parse(storedTenant);
+        console.log("Navigating to documents with tenant:", tenant);
+
+        // Ensure user metadata has tenant_id
+        if (user) {
+          console.log("Current user metadata:", user.user_metadata);
+        }
+      } else {
+        console.warn("No tenant found in session storage before navigation to documents");
+      }
+    } catch (error) {
+      console.error("Error parsing stored tenant before navigation to documents:", error);
+    }
 
     // Force a full page reload to clear any stale state
     window.location.replace("/dashboard/documents");
