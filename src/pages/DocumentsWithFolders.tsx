@@ -7,7 +7,6 @@ import { Plus, Folder } from "lucide-react";
 import NewDocumentUploadModal from "@/components/documents/NewDocumentUploadModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent } from "@/components/ui/card";
 
 const DocumentsWithFolders = () => {
   const { folderId } = useParams<{ folderId: string }>();
@@ -87,30 +86,14 @@ const DocumentsWithFolders = () => {
               sessionStorage.setItem('expandedParentFolder', data.parent_id);
             }
 
-            // Check for subfolders in sessionStorage
-            const storedSubfolders = sessionStorage.getItem('currentSubfolders');
-            if (storedSubfolders) {
-              try {
-                const parsedSubfolders = JSON.parse(storedSubfolders);
-                console.log(`Found ${parsedSubfolders.length} subfolders in sessionStorage`);
-                setSubfolders(parsedSubfolders);
-              } catch (error) {
-                console.error("Error parsing subfolders from sessionStorage:", error);
-              }
-            } else {
-              // If no subfolders in sessionStorage, fetch them directly
-              console.log("No subfolders in sessionStorage, fetching directly");
-              const { data: subfoldersData, error: subfoldersError } = await supabase
-                .from('folders')
-                .select('*')
-                .eq('parent_id', folderId);
-
-              if (subfoldersError) {
-                console.error("Error fetching subfolders:", subfoldersError);
-              } else if (subfoldersData) {
-                console.log(`Fetched ${subfoldersData.length} subfolders directly`);
-                setSubfolders(subfoldersData);
-              }
+            // Fetch subfolders directly using the getFolders function
+            try {
+              const { getFolders } = await import('@/lib/folders');
+              const subfoldersData = await getFolders(folderId);
+              console.log(`Fetched ${subfoldersData.length} subfolders for parent: ${folderId}`);
+              setSubfolders(subfoldersData);
+            } catch (error) {
+              console.error("Error fetching subfolders:", error);
             }
           } else {
             console.error("No folder found with ID:", folderId);
@@ -173,14 +156,15 @@ const DocumentsWithFolders = () => {
             <h3 className="text-lg font-medium mb-3">Subfolders</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {subfolders.map(subfolder => (
-                <div
+                <Button
                   key={subfolder.id}
-                  className="border rounded-lg p-4 cursor-pointer hover:bg-muted flex items-center"
+                  variant="outline"
+                  className="h-auto p-4 justify-start border rounded-lg hover:bg-muted flex items-center"
                   onClick={() => navigate(`/dashboard/documents/folders/${subfolder.id}`)}
                 >
                   <Folder className="h-5 w-5 mr-2 text-muted-foreground" />
                   <span className="font-medium">{subfolder.name}</span>
-                </div>
+                </Button>
               ))}
             </div>
           </div>

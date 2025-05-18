@@ -64,9 +64,9 @@ export interface FolderUpdate {
 }
 
 // Get all folders for the current user
-export const getFolders = async (): Promise<Folder[]> => {
+export const getFolders = async (parentId: string | null = null): Promise<Folder[]> => {
   try {
-    console.log("Fetching all folders...");
+    console.log(`Fetching folders with parentId: ${parentId}`);
 
     // Get the current user
     const { data: { user } } = await supabase.auth.getUser();
@@ -105,6 +105,15 @@ export const getFolders = async (): Promise<Folder[]> => {
       .select('*')
       .eq('is_deleted', false);
 
+    // Filter by parent_id
+    if (parentId === null) {
+      console.log("Filtering for top-level folders (parent_id is null)");
+      query = query.is('parent_id', null);
+    } else {
+      console.log(`Filtering for subfolders of parent: ${parentId}`);
+      query = query.eq('parent_id', parentId);
+    }
+
     // Add tenant filter if available
     if (tenantId) {
       console.log(`Filtering folders by tenant_id: ${tenantId}`);
@@ -128,12 +137,20 @@ export const getFolders = async (): Promise<Folder[]> => {
     // If no folders found with tenant filter, try without tenant filter as a fallback
     if (data?.length === 0 && tenantId) {
       console.log("No folders found with tenant filter, trying without tenant filter");
-      const { data: fallbackData, error: fallbackError } = await supabase
+      let fallbackQuery = supabase
         .from('folders')
         .select('*')
         .eq('is_deleted', false)
-        .eq('created_by', user.id)
-        .order('name');
+        .eq('created_by', user.id);
+
+      // Apply parent_id filter to fallback query
+      if (parentId === null) {
+        fallbackQuery = fallbackQuery.is('parent_id', null);
+      } else {
+        fallbackQuery = fallbackQuery.eq('parent_id', parentId);
+      }
+
+      const { data: fallbackData, error: fallbackError } = await fallbackQuery.order('name');
 
       if (fallbackError) {
         console.error("Error fetching folders without tenant filter:", fallbackError);
@@ -177,9 +194,9 @@ export const getFolderHierarchy = async (): Promise<FolderWithChildren[]> => {
   try {
     console.log("Getting folder hierarchy...");
 
-    // Get all folders
-    const folders = await getFolders();
-    console.log("All folders:", folders);
+    // Get top-level folders
+    const folders = await getFolders(null);
+    console.log("Top-level folders:", folders);
 
     // Get tenant ID using the helper function
     const tenantId = await getTenantId();
