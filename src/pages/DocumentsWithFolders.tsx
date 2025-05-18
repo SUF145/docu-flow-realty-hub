@@ -3,10 +3,11 @@ import { useParams, useNavigate } from "react-router-dom";
 import DocumentGrid from "@/components/documents/DocumentGrid";
 import SimpleFolderList from "@/components/folders/SimpleFolderList";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Folder } from "lucide-react";
 import NewDocumentUploadModal from "@/components/documents/NewDocumentUploadModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { Card, CardContent } from "@/components/ui/card";
 
 const DocumentsWithFolders = () => {
   const { folderId } = useParams<{ folderId: string }>();
@@ -15,6 +16,7 @@ const DocumentsWithFolders = () => {
 
   const navigate = useNavigate();
   const [folderName, setFolderName] = useState<string>("");
+  const [subfolders, setSubfolders] = useState<any[]>([]);
 
   // Check if user is onboarded and handle completed parameter
   useEffect(() => {
@@ -60,25 +62,69 @@ const DocumentsWithFolders = () => {
     // If we have a folder ID, fetch the folder name
     if (folderId) {
       const fetchFolderName = async () => {
-        const { data, error } = await supabase
-          .from('folders')
-          .select('name')
-          .eq('id', folderId)
-          .single();
+        console.log(`Fetching folder name for ID: ${folderId}`);
 
-        if (error) {
-          console.error("Error fetching folder name:", error);
-          return;
-        }
+        try {
+          const { data, error } = await supabase
+            .from('folders')
+            .select('name, parent_id')
+            .eq('id', folderId)
+            .single();
 
-        if (data) {
-          setFolderName(data.name);
+          if (error) {
+            console.error("Error fetching folder name:", error);
+            return;
+          }
+
+          if (data) {
+            console.log("Folder data:", data);
+            setFolderName(data.name);
+
+            // If this folder has a parent, we need to ensure it's expanded in the folder list
+            if (data.parent_id) {
+              console.log(`This folder has a parent: ${data.parent_id}`);
+              // You could store this in sessionStorage to communicate with the folder list component
+              sessionStorage.setItem('expandedParentFolder', data.parent_id);
+            }
+
+            // Check for subfolders in sessionStorage
+            const storedSubfolders = sessionStorage.getItem('currentSubfolders');
+            if (storedSubfolders) {
+              try {
+                const parsedSubfolders = JSON.parse(storedSubfolders);
+                console.log(`Found ${parsedSubfolders.length} subfolders in sessionStorage`);
+                setSubfolders(parsedSubfolders);
+              } catch (error) {
+                console.error("Error parsing subfolders from sessionStorage:", error);
+              }
+            } else {
+              // If no subfolders in sessionStorage, fetch them directly
+              console.log("No subfolders in sessionStorage, fetching directly");
+              const { data: subfoldersData, error: subfoldersError } = await supabase
+                .from('folders')
+                .select('*')
+                .eq('parent_id', folderId);
+
+              if (subfoldersError) {
+                console.error("Error fetching subfolders:", subfoldersError);
+              } else if (subfoldersData) {
+                console.log(`Fetched ${subfoldersData.length} subfolders directly`);
+                setSubfolders(subfoldersData);
+              }
+            }
+          } else {
+            console.error("No folder found with ID:", folderId);
+            // If folder not found, navigate back to all documents
+            navigate("/dashboard/documents");
+          }
+        } catch (error) {
+          console.error("Exception in fetchFolderName:", error);
         }
       };
 
       fetchFolderName();
     }
-  }, [folderId]);
+  }, [folderId, navigate]);
 
   return (
     <div className="h-[calc(100vh-160px)] flex">
@@ -93,7 +139,7 @@ const DocumentsWithFolders = () => {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => navigate("/documents")}
+                onClick={() => navigate("/dashboard/documents")}
                 className="text-muted-foreground"
               >
                 All Documents
@@ -120,6 +166,25 @@ const DocumentsWithFolders = () => {
             Upload Document
           </Button>
         </div>
+
+        {/* Display subfolders if any */}
+        {subfolders.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-lg font-medium mb-3">Subfolders</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {subfolders.map(subfolder => (
+                <div
+                  key={subfolder.id}
+                  className="border rounded-lg p-4 cursor-pointer hover:bg-muted flex items-center"
+                  onClick={() => navigate(`/dashboard/documents/folders/${subfolder.id}`)}
+                >
+                  <Folder className="h-5 w-5 mr-2 text-muted-foreground" />
+                  <span className="font-medium">{subfolder.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <DocumentGrid folderId={folderId} />
 

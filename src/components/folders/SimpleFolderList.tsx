@@ -41,7 +41,7 @@ const SimpleFolderList = ({ className }: SimpleFolderListProps) => {
 
     // Clean up the interval when the component unmounts
     return () => clearInterval(intervalId);
-  }, []);
+  }, [folderId]);
 
   const fetchFolders = async (showLoading = true) => {
     if (showLoading) {
@@ -113,7 +113,14 @@ const SimpleFolderList = ({ className }: SimpleFolderListProps) => {
   };
 
   const handleFolderClick = (folderId: string) => {
-    navigate(`/documents/folders/${folderId}`);
+    console.log(`Navigating to folder: ${folderId}`);
+
+    // Clear any URL parameters to avoid issues
+    const baseUrl = `/dashboard/documents/folders/${folderId}`;
+    window.history.replaceState({}, '', baseUrl);
+
+    // Use navigate with replace to avoid history issues
+    navigate(baseUrl, { replace: true });
   };
 
   const handleCreateFolder = () => {
@@ -151,7 +158,7 @@ const SimpleFolderList = ({ className }: SimpleFolderListProps) => {
         <Button
           variant={!folderId ? "secondary" : "ghost"}
           className="w-full justify-start"
-          onClick={() => navigate("/documents")}
+          onClick={() => navigate("/dashboard/documents")}
         >
           <Home className="h-4 w-4 mr-2" />
           <span className="text-sm">All Documents</span>

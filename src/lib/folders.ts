@@ -288,26 +288,55 @@ export const getDocumentsInFolder = async (folderId: string): Promise<Document[]
 // Get documents in a folder and all its subfolders
 export const getDocumentsInFolderTree = async (folderId: string): Promise<Document[]> => {
   try {
-    // Get tenant ID using the helper function
-    const tenantId = await getTenantId();
-    console.log("Using tenant ID for folder tree documents:", tenantId);
+    console.log(`Getting documents in folder tree for folder: ${folderId}`);
 
-    // Call the RPC function with folder_uuid and tenant_id
-    const { data, error } = await supabase
-      .rpc('get_documents_in_folder_tree', {
-        folder_uuid: folderId,
-        tenant_uuid: tenantId
+    // Try the simple function first
+    console.log(`Calling simple_get_documents_in_folder_tree with folder_uuid: ${folderId}`);
+    const { data: simpleData, error: simpleError } = await supabase
+      .rpc('simple_get_documents_in_folder_tree', {
+        folder_uuid: folderId
       });
 
-    if (error) {
-      console.error("Error fetching documents in folder tree:", error);
-      return [];
+    if (simpleError) {
+      console.error("Error with simple_get_documents_in_folder_tree:", simpleError);
+
+      // Fallback to direct query
+      console.log("Falling back to direct query for documents in folder");
+      return await getDocumentsInFolder(folderId);
     }
 
-    return data ?? [];
+    console.log(`Retrieved ${simpleData?.length ?? 0} documents from simple function`);
+
+    // Get subfolders to display in UI
+    console.log(`Getting subfolders for folder: ${folderId}`);
+    const { data: subfolders, error: subfoldersError } = await supabase
+      .rpc('get_subfolders', {
+        parent_folder_uuid: folderId
+      });
+
+    if (subfoldersError) {
+      console.error("Error getting subfolders:", subfoldersError);
+    } else {
+      console.log(`Found ${subfolders?.length ?? 0} subfolders`);
+
+      // Store subfolders in sessionStorage for the UI to use
+      if (subfolders && subfolders.length > 0) {
+        sessionStorage.setItem('currentSubfolders', JSON.stringify(subfolders));
+      }
+    }
+
+    return simpleData ?? [];
   } catch (error) {
     console.error("Exception in getDocumentsInFolderTree:", error);
-    return [];
+
+    // Final fallback: direct query
+    try {
+      console.log("Final fallback: direct query for documents in folder");
+      return await getDocumentsInFolder(folderId);
+    } catch (fallbackError) {
+      console.error("Fallback also failed:", fallbackError);
+      return [];
+    }
   }
 };
 

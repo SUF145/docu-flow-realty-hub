@@ -41,6 +41,21 @@ const FolderSidebar = ({ className }: FolderSidebarProps) => {
     return () => clearInterval(intervalId);
   }, [folderId]);
 
+  // Check for expandedParentFolder in sessionStorage
+  useEffect(() => {
+    const expandedParentFolder = sessionStorage.getItem('expandedParentFolder');
+    if (expandedParentFolder) {
+      console.log(`Found expandedParentFolder in sessionStorage: ${expandedParentFolder}`);
+      setExpandedFolders(prev => ({
+        ...prev,
+        [expandedParentFolder]: true
+      }));
+
+      // Clear it after using it
+      sessionStorage.removeItem('expandedParentFolder');
+    }
+  }, [folderId]);
+
   const fetchFolders = async () => {
     setIsLoading(true);
     try {
@@ -85,7 +100,7 @@ const FolderSidebar = ({ className }: FolderSidebarProps) => {
   };
 
   const handleFolderClick = (folderId: string) => {
-    navigate(`/documents/folders/${folderId}`);
+    navigate(`/dashboard/documents/folders/${folderId}`);
   };
 
   const handleCreateFolder = (parentId: string | null = null) => {
@@ -167,7 +182,7 @@ const FolderSidebar = ({ className }: FolderSidebarProps) => {
           className={`flex items-center py-1 px-2 rounded-md hover:bg-muted cursor-pointer ${
             !folderId ? "bg-muted" : ""
           }`}
-          onClick={() => navigate("/documents")}
+          onClick={() => navigate("/dashboard/documents")}
         >
           <Home className="h-4 w-4 mr-2 text-muted-foreground" />
           <span className="text-sm">All Documents</span>
